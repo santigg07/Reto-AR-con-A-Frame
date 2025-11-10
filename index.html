@@ -2,58 +2,51 @@
 <html lang="es">
   <head>
     <meta charset="utf-8" />
-    <title>Avatar en Realidad Aumentada</title>
+    <title>Avatar AR</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
-    <!-- Módulo AR -->
-    <script src="https://cdn.jsdelivr.net/npm/aframe-ar@1.2.0/dist/aframe-ar.min.js"></script>
   </head>
+
   <body style="margin: 0; overflow: hidden;">
-    <!-- Escena con soporte WebXR AR -->
+    <!-- Escena con WebXR AR habilitado -->
     <a-scene
-      embedded
-      vr-mode-ui="enabled: false"
-      xr-mode-ui="enabled: true"
       webxr="mode: ar; optionalFeatures: hit-test;"
+      embedded
       renderer="colorManagement: true; physicallyCorrectLights: true;"
+      vr-mode-ui="enabled: false"
+      arjs="sourceType: webcam;"
     >
-      <!-- Cargamos el modelo -->
+      <!-- Assets -->
       <a-assets timeout="30000">
+        <!-- ⚠️ Ajusta el nombre de tu archivo aquí -->
         <a-asset-item id="avatar" src="avatar-animación.glb"></a-asset-item>
       </a-assets>
 
-      <!-- Luz para el modelo -->
-      <a-entity light="type: directional; intensity: 1;" position="0 4 4"></a-entity>
-      <a-entity light="type: ambient; intensity: 0.5;"></a-entity>
+      <!-- Luz -->
+      <a-entity light="type: directional; intensity: 1" position="0 4 4"></a-entity>
+      <a-entity light="type: ambient; intensity: 0.5"></a-entity>
 
-      <!-- Modelo del avatar -->
+      <!-- Avatar (oculto hasta que se active AR) -->
       <a-entity
-        gltf-model="#avatar"
-        scale="1 1 1"
-        animation-mixer
-        shadow="cast: true;"
-        visible="false"
         id="avatar-model"
-      ></a-entity>
-
-      <!-- Retícula para colocar el modelo en el plano detectado -->
-      <a-entity
-        id="cursor"
-        geometry="primitive: ring; radiusInner: 0.03; radiusOuter: 0.05;"
-        material="color: yellow; shader: flat;"
-        position="0 0 -0.5"
+        gltf-model="#avatar"
+        scale="0.8 0.8 0.8"
+        position="0 0 -1"
+        animation-mixer
+        visible="false"
       ></a-entity>
 
       <a-camera position="0 0 0"></a-camera>
     </a-scene>
 
     <script>
-      // Cuando se detecta una superficie (hit-test), colocar el modelo ahí
+      // Mostrar el modelo cuando la sesión AR comience
       const scene = document.querySelector("a-scene");
-      let avatar = document.getElementById("avatar-model");
+      const avatar = document.getElementById("avatar-model");
 
       scene.addEventListener("enter-vr", () => {
-        if (scene.xrSession && scene.xrSession.environmentBlendMode === "ar") {
+        const session = scene.xrSession;
+        if (session && session.environmentBlendMode === "ar") {
           avatar.setAttribute("visible", true);
         }
       });
