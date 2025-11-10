@@ -2,54 +2,26 @@
 <html lang="es">
   <head>
     <meta charset="utf-8" />
-    <title>Avatar AR</title>
+    <title>Avatar AR Test</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
   </head>
-
-  <body style="margin: 0; overflow: hidden;">
-    <!-- Escena con WebXR AR habilitado -->
+  <body style="margin:0; overflow:hidden;">
     <a-scene
       webxr="mode: ar; optionalFeatures: hit-test;"
       embedded
-      renderer="colorManagement: true; physicallyCorrectLights: true;"
       vr-mode-ui="enabled: false"
-      arjs="sourceType: webcam;"
+      renderer="colorManagement: true; physicallyCorrectLights: true;"
     >
-      <!-- Assets -->
       <a-assets timeout="30000">
-        <!-- ⚠️ Ajusta el nombre de tu archivo aquí -->
         <a-asset-item id="avatar" src="avatar-animacion.glb"></a-asset-item>
       </a-assets>
 
-      <!-- Luz -->
-      <a-entity light="type: directional; intensity: 1" position="0 4 4"></a-entity>
       <a-entity light="type: ambient; intensity: 0.5"></a-entity>
+      <a-entity light="type: directional; intensity: 1" position="0 2 2"></a-entity>
 
-      <!-- Avatar (oculto hasta que se active AR) -->
-      <a-entity
-        id="avatar-model"
-        gltf-model="#avatar"
-        scale="0.8 0.8 0.8"
-        position="0 0 -1"
-        animation-mixer
-        visible="false"
-      ></a-entity>
-
-      <a-camera position="0 0 0"></a-camera>
+      <a-entity gltf-model="#avatar" scale="0.8 0.8 0.8" position="0 0 -1" animation-mixer></a-entity>
+      <a-camera></a-camera>
     </a-scene>
-
-    <script>
-      // Mostrar el modelo cuando la sesión AR comience
-      const scene = document.querySelector("a-scene");
-      const avatar = document.getElementById("avatar-model");
-
-      scene.addEventListener("enter-vr", () => {
-        const session = scene.xrSession;
-        if (session && session.environmentBlendMode === "ar") {
-          avatar.setAttribute("visible", true);
-        }
-      });
-    </script>
   </body>
 </html>
