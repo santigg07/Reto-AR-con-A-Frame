@@ -1,22 +1,51 @@
-<a-scene
-  renderer="antialias: true; colorManagement: true;"
-  xr-mode-ui="enabled: true"
-  webxr="optionalFeatures: hit-test;"
-  background="color: #000000"
-  vr-mode-ui="enabled: false">
-  
-  <a-assets timeout="30000">
-    <a-asset-item id="avatar" src="avatar-animacion.glb"></a-asset-item>
-  </a-assets>
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <title>Avatar AR</title>
+    <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
+  </head>
+  <body style="margin: 0; overflow: hidden;">
+    <a-scene
+      vr-mode-ui="enabled: false"
+      webxr="mode: ar; optionalFeatures: hit-test;"
+      embedded
+      renderer="colorManagement: true; physicallyCorrectLights: true;">
+      
+      <!-- Assets -->
+      <a-assets timeout="30000">
+        <a-asset-item id="avatar" src="avatar-animacion.glb"></a-asset-item>
+      </a-assets>
 
-  <!-- Cámara controlada por el móvil -->
-  <a-camera position="0 1.6 0"></a-camera>
+      <!-- Luz -->
+      <a-entity light="type: ambient; intensity: 1"></a-entity>
+      <a-entity light="type: directional; intensity: 1" position="1 1 0"></a-entity>
 
-  <!-- Avatar que aparecerá frente a ti -->
-  <a-entity
-    gltf-model="#avatar"
-    position="0 0 -2"
-    scale="1 1 1"
-    animation-mixer>
-  </a-entity>
-</a-scene>
+      <!-- Cámara AR -->
+      <a-camera gps-camera rotation-reader></a-camera>
+
+      <!-- Entidad vacía donde colocaremos el avatar -->
+      <a-entity id="spawnedAvatar" visible="false"></a-entity>
+    </a-scene>
+
+    <script>
+      // Esperar a que A-Frame inicialice
+      document.querySelector('a-scene').addEventListener('loaded', () => {
+        const sceneEl = document.querySelector('a-scene');
+        let placed = false;
+
+        sceneEl.addEventListener('click', (evt) => {
+          if (placed) return; // Solo colocar una vez
+          placed = true;
+
+          const avatar = document.createElement('a-entity');
+          avatar.setAttribute('gltf-model', '#avatar');
+          avatar.setAttribute('scale', '1 1 1');
+          avatar.setAttribute('animation-mixer', '');
+          avatar.setAttribute('position', '0 0 -1'); // Frente a la cámara
+          sceneEl.appendChild(avatar);
+        });
+      });
+    </script>
+  </body>
+</html>
