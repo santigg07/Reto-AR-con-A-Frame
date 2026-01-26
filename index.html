@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Avatar AR</title>
+    <title>Avatar AR - Simple</title>
     <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
     <style>
       body {
@@ -11,7 +11,7 @@
         overflow: hidden;
         font-family: Arial, sans-serif;
       }
-      #startButton {
+      #startBtn {
         position: fixed;
         top: 50%;
         left: 50%;
@@ -19,338 +19,181 @@
         background: #4CAF50;
         color: white;
         border: none;
-        padding: 20px 40px;
-        font-size: 20px;
-        border-radius: 10px;
+        padding: 25px 50px;
+        font-size: 24px;
+        border-radius: 15px;
         cursor: pointer;
-        z-index: 9999;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        z-index: 10000;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.4);
       }
-      #instructions {
+      #info {
         position: fixed;
         top: 20px;
         left: 50%;
         transform: translateX(-50%);
-        background: rgba(0,0,0,0.8);
+        background: rgba(0,0,0,0.85);
         color: white;
         padding: 15px 25px;
         border-radius: 10px;
-        z-index: 1000;
+        z-index: 9999;
         text-align: center;
         display: none;
-        max-width: 80%;
+        font-size: 16px;
       }
-      #debug {
+      #testBtn {
         position: fixed;
-        bottom: 10px;
-        left: 10px;
-        background: rgba(0,0,0,0.9);
-        color: lime;
-        padding: 10px;
-        border-radius: 5px;
-        font-family: monospace;
-        font-size: 10px;
-        max-width: 90%;
-        max-height: 200px;
-        overflow-y: auto;
-        z-index: 1001;
-      }
-      #loading {
-        position: fixed;
-        top: 50%;
+        bottom: 20px;
         left: 50%;
-        transform: translate(-50%, -50%);
-        background: rgba(0,0,0,0.9);
-        color: white;
-        padding: 30px;
-        border-radius: 10px;
-        z-index: 9998;
-        display: none;
-        text-align: center;
-      }
-      .spinner {
-        border: 4px solid #f3f3f3;
-        border-top: 4px solid #3498db;
-        border-radius: 50%;
-        width: 40px;
-        height: 40px;
-        animation: spin 1s linear infinite;
-        margin: 20px auto;
-      }
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
-      #resetBtn {
-        position: fixed;
-        top: 80px;
-        right: 10px;
-        background: rgba(255,100,100,0.9);
+        transform: translateX(-50%);
+        background: rgba(255,0,0,0.9);
         color: white;
         border: none;
-        padding: 12px 20px;
-        border-radius: 8px;
-        z-index: 1000;
+        padding: 15px 30px;
+        border-radius: 10px;
+        z-index: 9999;
         display: none;
-        font-size: 14px;
+        font-size: 18px;
       }
     </style>
   </head>
   <body>
-    <button id="startButton">Iniciar AR</button>
-    
-    <div id="loading">
-      <div class="spinner"></div>
-      <div>Cargando cámara...</div>
-    </div>
-
-    <div id="instructions">
-      Toca la pantalla para colocar el avatar
-    </div>
-
-    <button id="resetBtn" onclick="resetAvatar()">Reintentar</button>
-
-    <div id="debug"></div>
+    <button id="startBtn">▶ INICIAR AR</button>
+    <div id="info">Preparando...</div>
+    <button id="testBtn" onclick="placeTest()">🎯 COLOCAR OBJETOS AQUÍ</button>
 
     <a-scene
-      id="arScene"
+      id="scene"
       embedded
       vr-mode-ui="enabled: false"
-      device-orientation-permission-ui="enabled: false"
-      renderer="colorManagement: true; physicallyCorrectLights: true; alpha: true;"
+      renderer="colorManagement: true; alpha: true;"
       style="display: none;">
       
-      <a-assets timeout="30000">
-        <a-asset-item id="avatar" src="avatar.glb"></a-asset-item>
+      <a-assets>
+        <a-asset-item id="avatarModel" src="avatar.glb"></a-asset-item>
       </a-assets>
 
-      <!-- Iluminación intensa -->
+      <!-- Luz ambiental fuerte -->
       <a-entity light="type: ambient; intensity: 2"></a-entity>
-      <a-entity light="type: directional; intensity: 1.5" position="2 5 2"></a-entity>
-      <a-entity light="type: directional; intensity: 1.5" position="-2 5 -2"></a-entity>
-      <a-entity light="type: point; intensity: 1" position="0 2 0"></a-entity>
+      <a-entity light="type: directional; intensity: 1.5" position="5 5 5"></a-entity>
 
-      <!-- Cámara AR con near plane ajustado -->
-      <a-camera id="arCamera" position="0 1.6 0" 
-                camera="near: 0.1; far: 10000"></a-camera>
+      <!-- Cámara básica -->
+      <a-camera id="cam" position="0 1.6 0"></a-camera>
 
-      <!-- Contenedor del avatar -->
-      <a-entity id="avatar-container"></a-entity>
+      <!-- Contenedor -->
+      <a-entity id="container"></a-entity>
     </a-scene>
 
     <script>
-      const log = (msg, isError = false) => {
-        const time = new Date().toLocaleTimeString();
-        const debugEl = document.getElementById('debug');
-        const color = isError ? 'red' : 'lime';
-        debugEl.innerHTML += `<div style="color: ${color}">[${time}] ${msg}</div>`;
-        debugEl.scrollTop = debugEl.scrollHeight;
-        console.log(msg);
-      };
+      let stream = null;
+      let scene = null;
+      let placed = false;
 
-      let avatarPlaced = false;
-      let sceneEl;
-      let videoStream = null;
-      let avatarEntity = null;
-
-      const startButton = document.getElementById('startButton');
-      const loading = document.getElementById('loading');
-      const instructions = document.getElementById('instructions');
-
-      startButton.addEventListener('click', async () => {
-        startButton.style.display = 'none';
-        loading.style.display = 'block';
+      // Botón de inicio
+      document.getElementById('startBtn').onclick = async function() {
+        this.style.display = 'none';
+        const info = document.getElementById('info');
+        info.style.display = 'block';
+        info.textContent = 'Activando cámara...';
 
         try {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: { 
-              facingMode: 'environment',
-              width: { ideal: 1280 },
-              height: { ideal: 720 }
-            }
+          // Obtener cámara
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment' }
           });
-          
-          videoStream = stream;
-          log('✓ Cámara activada');
 
+          // Mostrar video de fondo
           const video = document.createElement('video');
-          video.setAttribute('autoplay', '');
-          video.setAttribute('playsinline', '');
-          video.style.position = 'fixed';
-          video.style.top = '0';
-          video.style.left = '0';
-          video.style.width = '100%';
-          video.style.height = '100%';
-          video.style.objectFit = 'cover';
-          video.style.zIndex = '-1';
+          video.autoplay = true;
+          video.playsInline = true;
+          video.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:-1';
           video.srcObject = stream;
           document.body.appendChild(video);
 
-          sceneEl = document.getElementById('arScene');
-          sceneEl.style.display = 'block';
+          // Mostrar escena
+          scene = document.getElementById('scene');
+          scene.style.display = 'block';
 
-          loading.style.display = 'none';
-          instructions.style.display = 'block';
+          info.textContent = '✓ Cámara activa - Toca el botón rojo';
+          document.getElementById('testBtn').style.display = 'block';
 
-          log('✓ AR iniciado - esperando carga de assets');
-
-          // Eventos de carga del modelo
-          sceneEl.addEventListener('model-loaded', (evt) => {
-            log('✓ Modelo GLB cargado exitosamente');
-          });
-
-          sceneEl.addEventListener('model-error', (evt) => {
-            log('✗ ERROR al cargar GLB: ' + JSON.stringify(evt.detail), true);
-          });
-
-          if (sceneEl.hasLoaded) {
-            setupClickHandler();
-          } else {
-            sceneEl.addEventListener('loaded', setupClickHandler);
-          }
-
-        } catch (error) {
-          log('✗ Error al acceder a la cámara: ' + error.message, true);
-          loading.innerHTML = '<div style="color: #ff6b6b;">Error: No se pudo acceder a la cámara<br><br>Verifica los permisos</div>';
-          setTimeout(() => {
-            loading.style.display = 'none';
-            startButton.style.display = 'block';
-          }, 3000);
+        } catch (err) {
+          info.textContent = '❌ Error: ' + err.message;
+          console.error(err);
         }
-      });
+      };
 
-      function setupClickHandler() {
-        log('✓ Escena lista para interacción');
-        
-        document.addEventListener('touchstart', placeAvatar);
-        document.addEventListener('click', placeAvatar);
-      }
+      // Función para colocar objetos de prueba
+      window.placeTest = function() {
+        if (placed) return;
+        placed = true;
 
-      function placeAvatar(evt) {
-        if (avatarPlaced) return;
+        const container = document.getElementById('container');
+        const info = document.getElementById('info');
         
-        evt.preventDefault();
-        avatarPlaced = true;
+        info.textContent = 'Colocando objetos...';
 
-        log('Colocando avatar...');
+        // ESTRATEGIA: Colocar múltiples objetos en círculo alrededor del usuario
+        // Así GARANTIZAMOS que al menos uno sea visible
+        
+        const distances = [2, 3, 4]; // Diferentes distancias
+        const angles = [0, 45, 90, 135, 180, 225, 270, 315]; // 8 direcciones
+        let count = 0;
 
-        const container = document.getElementById('avatar-container');
-        const camera = document.querySelector('#arCamera');
-        
-        // Obtener posición y rotación de la cámara
-        const cameraEl = camera.object3D;
-        const cameraPos = cameraEl.position.clone();
-        
-        // Obtener la dirección hacia donde mira la cámara
-        const direction = new THREE.Vector3();
-        cameraEl.getWorldDirection(direction);
-        
-        // Colocar a 3 metros en la dirección que mira la cámara
-        const distance = 3;
-        const targetPos = cameraPos.clone().add(direction.multiplyScalar(-distance));
-        
-        // Mantener altura constante cerca del suelo
-        targetPos.y = 1;
+        angles.forEach((angle, idx) => {
+          const rad = angle * Math.PI / 180;
+          const dist = distances[idx % distances.length];
+          
+          const x = Math.sin(rad) * dist;
+          const z = -Math.cos(rad) * dist;
+          const y = 1;
 
-        log(`Cámara en: (${cameraPos.x.toFixed(2)}, ${cameraPos.y.toFixed(2)}, ${cameraPos.z.toFixed(2)})`);
-        log(`Dirección: (${direction.x.toFixed(2)}, ${direction.y.toFixed(2)}, ${direction.z.toFixed(2)})`);
-        log(`Avatar en: (${targetPos.x.toFixed(2)}, ${targetPos.y.toFixed(2)}, ${targetPos.z.toFixed(2)})`);
+          // Cubo de prueba
+          const box = document.createElement('a-box');
+          box.setAttribute('position', `${x} ${y} ${z}`);
+          box.setAttribute('scale', '0.5 0.5 0.5');
+          box.setAttribute('color', idx === 0 ? '#FF0000' : '#00FF00');
+          box.setAttribute('material', 'emissive: ' + (idx === 0 ? '#FF0000' : '#00FF00') + '; emissiveIntensity: 0.8');
+          box.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 3000');
+          container.appendChild(box);
 
-        // Crear cubo de referencia MÁS GRANDE Y BRILLANTE
-        const testCube = document.createElement('a-box');
-        testCube.setAttribute('position', `${targetPos.x} ${targetPos.y + 1.5} ${targetPos.z}`);
-        testCube.setAttribute('scale', '1 1 1');
-        testCube.setAttribute('color', '#FF0000');
-        testCube.setAttribute('material', 'shader: flat; emissive: #FF0000; emissiveIntensity: 2; side: double');
-        testCube.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 2000');
-        sceneEl.appendChild(testCube);
-        
-        // Añadir esfera verde también
-        const sphere = document.createElement('a-sphere');
-        sphere.setAttribute('position', `${targetPos.x} ${targetPos.y + 2.5} ${targetPos.z}`);
-        sphere.setAttribute('radius', '0.3');
-        sphere.setAttribute('color', '#00FF00');
-        sphere.setAttribute('material', 'shader: flat; emissive: #00FF00; emissiveIntensity: 2; side: double');
-        sphere.setAttribute('animation', 'property: position; to: ' + targetPos.x + ' ' + (targetPos.y + 3) + ' ' + targetPos.z + '; dir: alternate; loop: true; dur: 1000');
-        sceneEl.appendChild(sphere);
-        
-        // Añadir texto 3D como marcador adicional
-        const text = document.createElement('a-text');
-        text.setAttribute('value', 'AQUÍ');
-        text.setAttribute('position', `${targetPos.x} ${targetPos.y + 3.5} ${targetPos.z}`);
-        text.setAttribute('align', 'center');
-        text.setAttribute('color', '#FFFF00');
-        text.setAttribute('scale', '3 3 3');
-        text.setAttribute('side', 'double');
-        sceneEl.appendChild(text);
-        
-        log('✓ Marcadores colocados (cubo rojo, esfera verde, texto)');
+          // Texto indicador
+          const text = document.createElement('a-text');
+          text.setAttribute('value', (idx + 1).toString());
+          text.setAttribute('position', `${x} ${y + 0.7} ${z}`);
+          text.setAttribute('align', 'center');
+          text.setAttribute('color', '#FFFF00');
+          text.setAttribute('scale', '2 2 2');
+          container.appendChild(text);
 
-        // Crear el avatar
-        avatarEntity = document.createElement('a-entity');
-        avatarEntity.setAttribute('gltf-model', '#avatar');
-        avatarEntity.setAttribute('scale', '2 2 2');
-        avatarEntity.setAttribute('position', `${targetPos.x} ${targetPos.y} ${targetPos.z}`);
-        
-        // Rotar hacia la cámara
-        avatarEntity.object3D.lookAt(cameraPos);
-        avatarEntity.object3D.rotation.x = 0;
-
-        // Agregar animación
-        setTimeout(() => {
-          if (avatarEntity.components['gltf-model']) {
-            avatarEntity.setAttribute('animation-mixer', 'clip: *; loop: repeat');
-            log('✓ Animaciones activadas');
-          }
-        }, 1000);
-
-        container.appendChild(avatarEntity);
-        log('✓ Avatar añadido a la escena');
-
-        // Verificar si se cargó
-        avatarEntity.addEventListener('model-loaded', () => {
-          log('✓✓ Avatar renderizado correctamente');
-          instructions.innerHTML = '¡Avatar colocado! 🎉<br>Mira frente a ti<br>Deberías ver texto "AQUÍ" amarillo';
-          document.getElementById('resetBtn').style.display = 'block';
+          count++;
         });
 
-        avatarEntity.addEventListener('model-error', (e) => {
-          log('✗✗ Error crítico al cargar avatar: ' + e.detail, true);
-          instructions.innerHTML = 'Error al cargar avatar.glb<br>¿Está el archivo en la misma carpeta?';
+        // Avatar en el centro frente a ti (ángulo 0)
+        const avatar = document.createElement('a-entity');
+        avatar.setAttribute('gltf-model', '#avatarModel');
+        avatar.setAttribute('position', '0 0 -3');
+        avatar.setAttribute('scale', '1.5 1.5 1.5');
+        avatar.setAttribute('rotation', '0 0 0');
+        
+        avatar.addEventListener('model-loaded', () => {
+          console.log('✓ Avatar cargado');
+          avatar.setAttribute('animation-mixer', 'clip: *; loop: repeat');
         });
-
-        instructions.innerHTML = 'Colocando avatar...<br>Busca texto "AQUÍ" amarillo frente a ti';
-      }
-
-      function resetAvatar() {
-        log('--- REINICIANDO ---');
-        avatarPlaced = false;
         
-        const container = document.getElementById('avatar-container');
-        while (container.firstChild) {
-          container.removeChild(container.firstChild);
-        }
-        
-        const cubes = document.querySelectorAll('a-box, a-sphere, a-text');
-        cubes.forEach(c => c.remove());
-        
-        instructions.innerHTML = 'Toca la pantalla para colocar el avatar';
-        instructions.style.display = 'block';
-        document.getElementById('resetBtn').style.display = 'none';
-      }
+        container.appendChild(avatar);
 
+        info.innerHTML = `✓ ${count} cubos + avatar colocados<br>Gira 360° LENTAMENTE<br>Busca números amarillos del 1 al 8`;
+        
+        document.getElementById('testBtn').textContent = '✓ Colocado - Busca los números';
+        document.getElementById('testBtn').style.background = 'rgba(0,150,0,0.9)';
+
+        console.log('Objetos colocados en círculo alrededor del usuario');
+      };
+
+      // Limpieza
       window.addEventListener('beforeunload', () => {
-        if (videoStream) {
-          videoStream.getTracks().forEach(track => track.stop());
-        }
+        if (stream) stream.getTracks().forEach(t => t.stop());
       });
-
-      // Capturar todos los errores
-      window.addEventListener('error', (e) => {
-        log('✗ Error JS: ' + e.message, true);
-      });
-
-      log('Script iniciado, presiona el botón');
     </script>
   </body>
 </html>
