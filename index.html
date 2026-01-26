@@ -130,8 +130,9 @@
       <a-entity light="type: directional; intensity: 1.5" position="-2 5 -2"></a-entity>
       <a-entity light="type: point; intensity: 1" position="0 2 0"></a-entity>
 
-      <!-- Cámara AR -->
-      <a-camera id="arCamera" position="0 1.6 0"></a-camera>
+      <!-- Cámara AR con near plane ajustado -->
+      <a-camera id="arCamera" position="0 1.6 0" 
+                camera="near: 0.1; far: 10000"></a-camera>
 
       <!-- Contenedor del avatar -->
       <a-entity id="avatar-container"></a-entity>
@@ -239,47 +240,61 @@
         // Obtener posición y rotación de la cámara
         const cameraEl = camera.object3D;
         const cameraPos = cameraEl.position.clone();
-        const cameraQuat = cameraEl.quaternion.clone();
-
-        // Crear vector hacia adelante - MÁS LEJOS
-        const forward = new THREE.Vector3(0, 0, -5); // 5 metros adelante
-        forward.applyQuaternion(cameraQuat);
         
-        const targetPos = cameraPos.clone().add(forward);
-        targetPos.y = 0.5; // Elevar del suelo para mejor visibilidad
+        // Obtener la dirección hacia donde mira la cámara
+        const direction = new THREE.Vector3();
+        cameraEl.getWorldDirection(direction);
+        
+        // Colocar a 3 metros en la dirección que mira la cámara
+        const distance = 3;
+        const targetPos = cameraPos.clone().add(direction.multiplyScalar(-distance));
+        
+        // Mantener altura constante cerca del suelo
+        targetPos.y = 1;
 
         log(`Cámara en: (${cameraPos.x.toFixed(2)}, ${cameraPos.y.toFixed(2)}, ${cameraPos.z.toFixed(2)})`);
+        log(`Dirección: (${direction.x.toFixed(2)}, ${direction.y.toFixed(2)}, ${direction.z.toFixed(2)})`);
         log(`Avatar en: (${targetPos.x.toFixed(2)}, ${targetPos.y.toFixed(2)}, ${targetPos.z.toFixed(2)})`);
 
         // Crear cubo de referencia MÁS GRANDE Y BRILLANTE
         const testCube = document.createElement('a-box');
-        testCube.setAttribute('position', `${targetPos.x} ${targetPos.y + 2} ${targetPos.z}`);
-        testCube.setAttribute('scale', '1 1 1'); // MUCHO MÁS GRANDE
+        testCube.setAttribute('position', `${targetPos.x} ${targetPos.y + 1.5} ${targetPos.z}`);
+        testCube.setAttribute('scale', '1 1 1');
         testCube.setAttribute('color', '#FF0000');
-        testCube.setAttribute('material', 'shader: flat; emissive: #FF0000; emissiveIntensity: 1');
+        testCube.setAttribute('material', 'shader: flat; emissive: #FF0000; emissiveIntensity: 2; side: double');
         testCube.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 2000');
         sceneEl.appendChild(testCube);
         
         // Añadir esfera verde también
         const sphere = document.createElement('a-sphere');
-        sphere.setAttribute('position', `${targetPos.x} ${targetPos.y + 3} ${targetPos.z}`);
-        sphere.setAttribute('radius', '0.5');
+        sphere.setAttribute('position', `${targetPos.x} ${targetPos.y + 2.5} ${targetPos.z}`);
+        sphere.setAttribute('radius', '0.3');
         sphere.setAttribute('color', '#00FF00');
-        sphere.setAttribute('material', 'shader: flat; emissive: #00FF00; emissiveIntensity: 1');
-        sphere.setAttribute('animation', 'property: position; to: ' + targetPos.x + ' ' + (targetPos.y + 3.5) + ' ' + targetPos.z + '; dir: alternate; loop: true; dur: 1000');
+        sphere.setAttribute('material', 'shader: flat; emissive: #00FF00; emissiveIntensity: 2; side: double');
+        sphere.setAttribute('animation', 'property: position; to: ' + targetPos.x + ' ' + (targetPos.y + 3) + ' ' + targetPos.z + '; dir: alternate; loop: true; dur: 1000');
         sceneEl.appendChild(sphere);
         
-        log('✓ Cubo rojo y esfera verde colocados como referencia');
+        // Añadir texto 3D como marcador adicional
+        const text = document.createElement('a-text');
+        text.setAttribute('value', 'AQUÍ');
+        text.setAttribute('position', `${targetPos.x} ${targetPos.y + 3.5} ${targetPos.z}`);
+        text.setAttribute('align', 'center');
+        text.setAttribute('color', '#FFFF00');
+        text.setAttribute('scale', '3 3 3');
+        text.setAttribute('side', 'double');
+        sceneEl.appendChild(text);
+        
+        log('✓ Marcadores colocados (cubo rojo, esfera verde, texto)');
 
         // Crear el avatar
         avatarEntity = document.createElement('a-entity');
         avatarEntity.setAttribute('gltf-model', '#avatar');
-        avatarEntity.setAttribute('scale', '3 3 3'); // ESCALA MUY GRANDE
+        avatarEntity.setAttribute('scale', '2 2 2');
         avatarEntity.setAttribute('position', `${targetPos.x} ${targetPos.y} ${targetPos.z}`);
         
         // Rotar hacia la cámara
         avatarEntity.object3D.lookAt(cameraPos);
-        avatarEntity.object3D.rotation.x = 0; // Mantener vertical
+        avatarEntity.object3D.rotation.x = 0;
 
         // Agregar animación
         setTimeout(() => {
@@ -295,7 +310,7 @@
         // Verificar si se cargó
         avatarEntity.addEventListener('model-loaded', () => {
           log('✓✓ Avatar renderizado correctamente');
-          instructions.innerHTML = '¡Avatar colocado! 🎉<br>Deberías ver un cubo rojo<br>El avatar está al lado';
+          instructions.innerHTML = '¡Avatar colocado! 🎉<br>Mira frente a ti<br>Deberías ver texto "AQUÍ" amarillo';
           document.getElementById('resetBtn').style.display = 'block';
         });
 
@@ -304,7 +319,7 @@
           instructions.innerHTML = 'Error al cargar avatar.glb<br>¿Está el archivo en la misma carpeta?';
         });
 
-        instructions.innerHTML = 'Colocando avatar...<br>Busca un CUBO ROJO GRANDE girando 360°<br>Debería estar frente a ti a 5 metros';
+        instructions.innerHTML = 'Colocando avatar...<br>Busca texto "AQUÍ" amarillo frente a ti';
       }
 
       function resetAvatar() {
@@ -316,7 +331,7 @@
           container.removeChild(container.firstChild);
         }
         
-        const cubes = document.querySelectorAll('a-box, a-sphere');
+        const cubes = document.querySelectorAll('a-box, a-sphere, a-text');
         cubes.forEach(c => c.remove());
         
         instructions.innerHTML = 'Toca la pantalla para colocar el avatar';
