@@ -3,129 +3,32 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Saluda a tu Avatar en AR</title>
+    <title>Avatar AR</title>
     <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
-    
-    <script>
-      // Componente para gestionar AR
-      AFRAME.registerComponent('ar-mode', {
-        init: function () {
-          const sceneEl = this.el;
-          
-          // Ocultar elementos cuando entramos en AR
-          sceneEl.addEventListener('enter-vr', () => {
-            if (sceneEl.is('ar-mode')) {
-              // Ocultar cielo y plano en AR
-              const sky = document.querySelector('a-sky');
-              const plane = document.querySelector('a-plane');
-              if (sky) sky.setAttribute('visible', false);
-              if (plane) plane.setAttribute('visible', false);
-            }
-          });
-          
-          sceneEl.addEventListener('exit-vr', () => {
-            // Mostrar elementos al salir de AR
-            const sky = document.querySelector('a-sky');
-            const plane = document.querySelector('a-plane');
-            if (sky) sky.setAttribute('visible', true);
-            if (plane) plane.setAttribute('visible', true);
-          });
-        }
-      });
-    </script>
-    
-    <style>
-      body {
-        margin: 0;
-        overflow: hidden;
-      }
-      #overlay {
-        position: fixed;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(0,0,0,0.7);
-        color: white;
-        padding: 15px 25px;
-        border-radius: 10px;
-        font-family: Arial, sans-serif;
-        font-size: 16px;
-        z-index: 1000;
-        text-align: center;
-        max-width: 80%;
-      }
-    </style>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
   </head>
-  <body>
-    <!-- 
-      Configuración AR mejorada:
-      - AR mode habilitado por defecto
-      - DOM overlay para UI
-    -->
-    <a-scene 
-      ar-mode
-      renderer="colorManagement: true; physicallyCorrectLights: true;"
-      vr-mode-ui="enabled: true; enterAREnabled: true;"
-      webxr="requiredFeatures: hit-test,local-floor;
-             optionalFeatures: dom-overlay,dom-overlay-for-handheld-ar;
-             overlayElement: #overlay;">
+  <body style="margin: 0; overflow: hidden;">
+    <a-scene
+      embedded
+      arjs="sourceType: webcam; debugUIEnabled: false;"
+      vr-mode-ui="enabled: false">
       
-      <!-- Assets -->
       <a-assets timeout="30000">
         <a-asset-item id="avatar" src="avatar.glb"></a-asset-item>
       </a-assets>
 
-      <!-- Cámara -->
-      <a-camera position="0 1.6 0"></a-camera>
-
-      <!-- Cielo (solo visible en modo VR) -->
-      <a-sky color="#87CEEB"></a-sky>
-
-      <!-- Luz ambiental -->
-      <a-light type="ambient" intensity="1"></a-light>
-
-      <!-- Luz direccional -->
-      <a-light type="directional" intensity="0.5" position="1 2 1"></a-light>
-
-      <!-- Avatar - Posición ajustada para AR -->
-      <a-entity position="0 0 -1">
-        <a-entity 
-          id="avatar-model"
+      <!-- Marcador AR (usa el marcador Hiro por defecto) -->
+      <a-marker preset="hiro">
+        <a-entity
           gltf-model="#avatar"
-          animation-mixer="clip: *; loop: repeat;"
-          scale="0.4 0.4 0.4"
-          position="0 0 0"
-          rotation="0 0 0">
+          animation-mixer
+          scale="0.5 0.5 0.5"
+          position="0 0 0">
         </a-entity>
-        
-        <!-- Sombra del avatar -->
-        <a-circle 
-          position="0 0.01 0" 
-          rotation="-90 0 0" 
-          radius="0.3" 
-          color="#000000" 
-          opacity="0.4"
-          material="transparent: true">
-        </a-circle>
-      </a-entity>
+      </a-marker>
 
-      <!-- Plano de referencia (solo visible en modo VR) -->
-      <a-plane 
-        position="0 0 0" 
-        rotation="-90 0 0" 
-        width="10" 
-        height="10" 
-        color="#7BC8A4">
-      </a-plane>
-
+      <a-entity camera></a-entity>
     </a-scene>
-
-    <!-- Overlay de instrucciones -->
-    <div id="overlay">
-      👋 <strong>¡Saluda a tu avatar!</strong><br>
-      <small>Pulsa el botón VR/AR para activar la cámara</small>
-    </div>
-
   </body>
 </html>
