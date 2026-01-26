@@ -122,18 +122,20 @@
       id="scene"
       embedded
       vr-mode-ui="enabled: false"
-      renderer="colorManagement: true; antialias: true; alpha: true; logarithmicDepthBuffer: true"
-      style="display: none; background: transparent;">
+      renderer="colorManagement: true; antialias: true; alpha: true; logarithmicDepthBuffer: true; sortObjects: true"
+      background="color: #000000"
+      style="display: none;">
       
       <a-assets>
         <a-asset-item id="avatarModel" src="avatar.glb"></a-asset-item>
       </a-assets>
 
-      <!-- Iluminación óptima -->
-      <a-entity light="type: ambient; intensity: 2"></a-entity>
-      <a-entity light="type: directional; intensity: 1.5" position="5 5 5"></a-entity>
-      <a-entity light="type: directional; intensity: 1" position="-5 3 -3"></a-entity>
-      <a-entity light="type: point; intensity: 1; color: #FFF" position="0 3 0"></a-entity>
+      <!-- Iluminación óptima para asegurar visibilidad -->
+      <a-entity light="type: ambient; intensity: 2.5"></a-entity>
+      <a-entity light="type: directional; intensity: 2" position="5 5 5"></a-entity>
+      <a-entity light="type: directional; intensity: 1.5" position="-5 3 -3"></a-entity>
+      <a-entity light="type: point; intensity: 1.5; color: #FFF" position="0 3 0"></a-entity>
+      <a-entity light="type: hemisphere; intensity: 1" groundColor="#444"></a-entity>
 
       <!-- Cámara con cursor visible -->
       <a-camera id="cam" position="0 1.6 0" look-controls="enabled: true" wasd-controls="enabled: false">
@@ -196,24 +198,25 @@
                 sceneEl.style.display = 'block';
                 sceneEl.style.zIndex = '1';
                 
-                // Hacer fondo completamente transparente
-                sceneEl.setAttribute('background', 'transparent: true');
-                sceneEl.setAttribute('renderer', 'colorManagement: true; antialias: true; alpha: true; logarithmicDepthBuffer: true');
+                // NO cambiar el background aquí, mantener opaco inicialmente
                 
-                // Configurar canvas transparente y verificar que esté encima del video
+                // Esperar a que A-Frame esté completamente listo
                 setTimeout(() => {
                   const canvas = sceneEl.canvas;
                   if (canvas) {
-                    canvas.style.background = 'transparent';
-                    canvas.style.backgroundColor = 'transparent';
+                    // AHORA hacer el canvas transparente PERO mantener el rendering activo
                     canvas.style.zIndex = '1';
                     canvas.style.position = 'fixed';
-                    console.log('Canvas configurado transparente sobre video');
+                    
+                    // Hacer solo el fondo transparente, no el rendering
+                    sceneEl.setAttribute('background', 'transparent: true');
+                    
+                    console.log('Canvas configurado sobre video');
                   }
                   
                   instructions.textContent = '✓ AR Listo - Apunta donde quieres colocar el avatar';
                   document.getElementById('placeBtn').style.display = 'block';
-                }, 1000);
+                }, 1500);
               }, 500);
               
             }).catch(err => {
@@ -261,19 +264,36 @@
         const targetPos = cameraPos.clone().add(direction.multiplyScalar(-distance));
         targetPos.y = 0; // En el suelo
 
-        // Avatar principal
+        // Avatar principal con material forzado
         const avatar = document.createElement('a-entity');
         avatar.setAttribute('gltf-model', '#avatarModel');
         avatar.setAttribute('position', `${targetPos.x} ${targetPos.y} ${targetPos.z}`);
-        avatar.setAttribute('scale', '1 1 1');
+        avatar.setAttribute('scale', '1.2 1.2 1.2');
+        avatar.setAttribute('visible', 'true');
         
         // Rotar hacia la cámara
         avatar.object3D.lookAt(cameraPos);
         avatar.object3D.rotation.x = 0;
         
         avatar.addEventListener('model-loaded', () => {
+          console.log('✓ Modelo cargado');
+          
+          // Forzar que el modelo sea visible y opaco
+          avatar.object3D.traverse((node) => {
+            if (node.isMesh) {
+              node.frustumCulled = false;
+              node.renderOrder = 999; // Renderizar al final (encima de todo)
+              if (node.material) {
+                node.material.transparent = false;
+                node.material.opacity = 1;
+                node.material.depthWrite = true;
+                node.material.depthTest = true;
+              }
+            }
+          });
+          
           avatar.setAttribute('animation-mixer', 'clip: *; loop: repeat');
-          document.getElementById('instructions').innerHTML = '✓ ¡Avatar colocado!<br>Muévete para verlo desde diferentes ángulos';
+          document.getElementById('instructions').innerHTML = '✓ ¡Avatar colocado y visible!<br>Muévete para verlo desde diferentes ángulos';
           
           // Auto-ocultar después de 3 segundos
           setTimeout(() => {
