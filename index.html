@@ -82,7 +82,7 @@
       <a-entity light="type: directional; intensity: 2" position="10 10 10"></a-entity>
       <a-entity light="type: point; intensity: 1" position="0 2 0"></a-entity>
 
-      <a-camera id="cam" position="0 0 0" wasd-controls="enabled: false"></a-camera>
+      <a-camera id="cam" position="0 1.6 5" wasd-controls="enabled: false"></a-camera>
       
       <a-entity id="container"></a-entity>
     </a-scene>
@@ -187,11 +187,11 @@
         // Esto elimina cualquier problema de cálculo de dirección
         
         const positions = [
-          { x: 0, y: 1, z: -2, color: '#FF0000', label: 'FRENTE' },
-          { x: 2, y: 1, z: 0, color: '#00FF00', label: 'DERECHA' },
-          { x: 0, y: 1, z: 2, color: '#0000FF', label: 'DETRÁS' },
-          { x: -2, y: 1, z: 0, color: '#FFFF00', label: 'IZQUIERDA' },
-          { x: 0, y: 2, z: -2, color: '#FF00FF', label: 'ARRIBA' },
+          { x: 0, y: 1, z: -3, color: '#FF0000', label: 'FRENTE' },
+          { x: 3, y: 1, z: -3, color: '#00FF00', label: 'DERECHA' },
+          { x: 0, y: 1, z: 0, color: '#0000FF', label: 'CERCA' },
+          { x: -3, y: 1, z: -3, color: '#FFFF00', label: 'IZQUIERDA' },
+          { x: 0, y: 3, z: -3, color: '#FF00FF', label: 'ARRIBA' },
         ];
 
         positions.forEach((pos, idx) => {
@@ -218,11 +218,11 @@
           log(`✓ ${pos.label}: (${pos.x}, ${pos.y}, ${pos.z})`, pos.color);
         });
 
-        // Avatar justo FRENTE
+        // Avatar más LEJOS
         const avatar = document.createElement('a-entity');
         avatar.setAttribute('gltf-model', '#avatarModel');
-        avatar.setAttribute('position', '0 0 -2.5');
-        avatar.setAttribute('scale', '1 1 1');
+        avatar.setAttribute('position', '0 0 -5');
+        avatar.setAttribute('scale', '1.5 1.5 1.5');
         avatar.setAttribute('rotation', '0 0 0');
         
         avatar.addEventListener('model-loaded', () => {
@@ -235,11 +235,11 @@
         });
 
         container.appendChild(avatar);
-        log('✓ Avatar añadido en (0, 0, -2.5)', 'lime');
+        log('✓ Avatar añadido en (0, 0, -5)', 'lime');
 
         log('--- TOTAL: 5 esferas + 5 textos + 1 avatar ---', 'cyan');
-        log('INSTRUCCIÓN: Gira LENTAMENTE 360°', 'yellow');
-        log('Deberías ver: FRENTE(rojo), DERECHA(verde), DETRÁS(azul), IZQUIERDA(amarillo)', 'yellow');
+        log('Cámara movida a (0, 1.6, 5) - mirando hacia objetos', 'yellow');
+        log('AHORA DEBERÍAS VER: FRENTE(rojo), DERECHA(verde), IZQUIERDA(amarillo)', 'yellow');
       };
 
       window.showInfo = function() {
