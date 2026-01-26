@@ -3,66 +3,13 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Avatar AR - Test Render</title>
+    <title>Avatar AR - Final</title>
     <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
     <style>
       body {
         margin: 0;
         overflow: hidden;
-        font-family: monospace;
-      }
-      #status {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        background: rgba(0,0,0,0.9);
-        color: lime;
-        padding: 10px;
-        font-size: 11px;
-        max-height: 30vh;
-        overflow-y: auto;
-        z-index: 10000;
-      }
-      #controls {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background: rgba(0,0,0,0.9);
-        padding: 15px;
-        z-index: 10000;
-        text-align: center;
-      }
-      button {
-        background: #4CAF50;
-        color: white;
-        border: none;
-        padding: 15px 30px;
-        margin: 5px;
-        border-radius: 10px;
-        font-size: 16px;
-        cursor: pointer;
-      }
-      button:active { background: #45a049; }
-      .red { background: #f44336 !important; }
-      
-      /* CRÍTICO: Asegurar que el canvas esté visible */
-      #scene {
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        z-index: 1 !important;
-      }
-      
-      #scene canvas {
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
+        font-family: Arial, sans-serif;
       }
       
       #videoContainer {
@@ -80,15 +27,92 @@
         height: 100%;
         object-fit: cover;
       }
+      
+      #scene {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        z-index: 1 !important;
+      }
+      
+      #scene canvas {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+      }
+      
+      #startBtn {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 25px 50px;
+        font-size: 22px;
+        border-radius: 15px;
+        cursor: pointer;
+        z-index: 10000;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+        font-weight: bold;
+      }
+      
+      #startBtn:active {
+        transform: translate(-50%, -50%) scale(0.95);
+      }
+      
+      #instructions {
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0,0,0,0.85);
+        color: white;
+        padding: 15px 25px;
+        border-radius: 12px;
+        z-index: 9999;
+        text-align: center;
+        display: none;
+        font-size: 16px;
+        max-width: 80%;
+      }
+      
+      #placeBtn {
+        position: fixed;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+        border: none;
+        padding: 20px 40px;
+        font-size: 20px;
+        border-radius: 50px;
+        cursor: pointer;
+        z-index: 9999;
+        display: none;
+        box-shadow: 0 8px 25px rgba(245,87,108,0.4);
+        font-weight: bold;
+      }
+      
+      #placeBtn:active {
+        transform: translateX(-50%) scale(0.95);
+      }
+      
+      .placed {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
+      }
     </style>
   </head>
   <body>
-    <div id="status">Iniciando...</div>
-
-    <div id="controls">
-      <button onclick="testMode()">TEST SIN CÁMARA</button>
-      <button onclick="startWithCamera()" class="red">AR CON CÁMARA</button>
-    </div>
+    <button id="startBtn">🚀 INICIAR AR</button>
+    <div id="instructions">Preparando AR...</div>
+    <button id="placeBtn">📍 COLOCAR AVATAR</button>
 
     <div id="videoContainer"></div>
 
@@ -97,177 +121,156 @@
       embedded
       vr-mode-ui="enabled: false"
       renderer="colorManagement: true; antialias: true; alpha: false; logarithmicDepthBuffer: true"
-      background="color: #222">
+      background="color: #87CEEB"
+      style="display: none;">
       
       <a-assets>
         <a-asset-item id="avatarModel" src="avatar.glb"></a-asset-item>
       </a-assets>
 
-      <a-entity light="type: ambient; intensity: 1.5"></a-entity>
-      <a-entity light="type: directional; intensity: 1" position="5 5 5"></a-entity>
-      <a-entity light="type: point; intensity: 0.8; color: #FFF" position="0 3 -3"></a-entity>
+      <!-- Iluminación óptima -->
+      <a-entity light="type: ambient; intensity: 2"></a-entity>
+      <a-entity light="type: directional; intensity: 1.5" position="5 5 5"></a-entity>
+      <a-entity light="type: directional; intensity: 1" position="-5 3 -3"></a-entity>
+      <a-entity light="type: point; intensity: 1; color: #FFF" position="0 3 0"></a-entity>
 
-      <a-camera id="cam" position="0 1.6 3" look-controls="enabled: true" wasd-controls="enabled: false">
-        <a-cursor color="#FF0000" opacity="0.8"></a-cursor>
+      <!-- Cámara con cursor visible -->
+      <a-camera id="cam" position="0 1.6 0" look-controls="enabled: true" wasd-controls="enabled: false">
+        <a-ring position="0 0 -0.5" radius-inner="0.01" radius-outer="0.02" color="#FF0000" opacity="0.8"></a-ring>
       </a-camera>
       
       <a-entity id="container"></a-entity>
       
-      <!-- Suelo para referencia -->
-      <a-plane position="0 0 0" rotation="-90 0 0" width="20" height="20" color="#555" opacity="0.8"></a-plane>
+      <!-- Plano suelo semi-transparente -->
+      <a-plane position="0 0 0" rotation="-90 0 0" width="30" height="30" 
+               color="#4CAF50" opacity="0.2" visible="false" id="ground"></a-plane>
     </a-scene>
 
     <script>
-      const log = (msg, color = 'lime') => {
-        const s = document.getElementById('status');
-        const time = new Date().toLocaleTimeString();
-        s.innerHTML += `<div style="color:${color}">[${time}] ${msg}</div>`;
-        s.scrollTop = s.scrollHeight;
-        console.log(msg);
-      };
+      let videoStream = null;
+      let sceneEl = null;
+      let avatarPlaced = false;
 
-      let scene = null;
-      let objectsPlaced = false;
+      // Iniciar AR
+      document.getElementById('startBtn').onclick = async function() {
+        this.style.display = 'none';
+        const instructions = document.getElementById('instructions');
+        instructions.style.display = 'block';
+        instructions.textContent = 'Activando cámara...';
 
-      // MODO TEST: Sin cámara, solo para ver si A-Frame renderiza
-      window.testMode = function() {
-        log('=== MODO TEST (SIN CÁMARA) ===', 'cyan');
-        log('Esto te permitirá ver si A-Frame funciona en tu dispositivo', 'yellow');
-        
-        scene = document.getElementById('scene');
-        
-        // Asegurar que el canvas sea visible
-        setTimeout(() => {
-          const canvas = scene.canvas;
-          if (canvas) {
-            log('✓ Canvas encontrado: ' + canvas.width + 'x' + canvas.height, 'lime');
-            canvas.style.display = 'block';
-            canvas.style.visibility = 'visible';
-            canvas.style.zIndex = '1';
-          } else {
-            log('✗ Canvas NO encontrado', 'red');
-          }
-        }, 1000);
-
-        if (scene.hasLoaded) {
-          placeTestObjects();
-        } else {
-          scene.addEventListener('loaded', placeTestObjects);
-        }
-      };
-
-      // MODO AR: Con cámara
-      window.startWithCamera = async function() {
-        log('=== MODO AR (CON CÁMARA) ===', 'cyan');
-        
         try {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment' }
+          // Obtener cámara
+          videoStream = await navigator.mediaDevices.getUserMedia({
+            video: { 
+              facingMode: 'environment',
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            }
           });
-          
-          log('✓ Cámara obtenida', 'lime');
 
-          // Video de fondo
+          // Mostrar video
           const videoContainer = document.getElementById('videoContainer');
           const video = document.createElement('video');
           video.autoplay = true;
           video.playsInline = true;
           video.muted = true;
-          video.srcObject = stream;
+          video.srcObject = videoStream;
           videoContainer.appendChild(video);
 
-          log('✓ Video activado', 'lime');
-
-          scene = document.getElementById('scene');
+          // Activar escena A-Frame
+          sceneEl = document.getElementById('scene');
+          sceneEl.style.display = 'block';
           
-          // Hacer el fondo de A-Frame transparente para ver el video
-          scene.setAttribute('background', 'transparent: true; alpha: true');
+          // Hacer fondo transparente para ver el video
+          sceneEl.setAttribute('background', 'transparent: true; alpha: true');
           
-          // Forzar el canvas visible encima del video
+          // Configurar canvas transparente
           setTimeout(() => {
-            const canvas = scene.canvas;
+            const canvas = sceneEl.canvas;
             if (canvas) {
               canvas.style.background = 'transparent';
-              log('✓ Canvas configurado transparente sobre video', 'lime');
             }
-          }, 1000);
+          }, 500);
 
-          if (scene.hasLoaded) {
-            placeTestObjects();
-          } else {
-            scene.addEventListener('loaded', placeTestObjects);
-          }
+          instructions.textContent = '✓ AR Activo';
+          setTimeout(() => {
+            instructions.textContent = 'Apunta donde quieres colocar el avatar';
+          }, 1500);
+
+          document.getElementById('placeBtn').style.display = 'block';
 
         } catch (err) {
-          log('✗ ERROR cámara: ' + err.message, 'red');
+          instructions.textContent = '❌ Error: ' + err.message;
+          instructions.style.background = 'rgba(200,0,0,0.9)';
         }
       };
 
-      function placeTestObjects() {
-        if (objectsPlaced) return;
-        objectsPlaced = true;
+      // Colocar avatar
+      document.getElementById('placeBtn').onclick = function() {
+        if (avatarPlaced) {
+          // Reset
+          document.getElementById('container').innerHTML = '';
+          document.getElementById('ground').setAttribute('visible', 'false');
+          avatarPlaced = false;
+          this.textContent = '📍 COLOCAR AVATAR';
+          this.classList.remove('placed');
+          document.getElementById('instructions').textContent = 'Apunta donde quieres colocar el avatar';
+          return;
+        }
 
-        log('Colocando objetos de prueba...', 'cyan');
+        avatarPlaced = true;
+        this.textContent = '🔄 REINICIAR';
+        this.classList.add('placed');
 
         const container = document.getElementById('container');
+        const cam = document.getElementById('cam');
+        
+        // Obtener dirección de la cámara
+        const direction = new THREE.Vector3();
+        cam.object3D.getWorldDirection(direction);
+        
+        const cameraPos = cam.object3D.position.clone();
+        
+        // Colocar a 2 metros en la dirección que mira
+        const distance = 2;
+        const targetPos = cameraPos.clone().add(direction.multiplyScalar(-distance));
+        targetPos.y = 0; // En el suelo
 
-        // Objetos SIMPLES y GRANDES justo frente a la cámara
-        const testObjects = [
-          // Cubo rojo MUY CERCA
-          { type: 'box', pos: '0 1.6 -1', scale: '0.5 0.5 0.5', color: '#FF0000', label: 'ROJO-CERCA' },
-          // Esfera verde a medio camino
-          { type: 'sphere', pos: '0 1.6 -3', scale: '0.7 0.7 0.7', color: '#00FF00', label: 'VERDE-MEDIO' },
-          // Cilindro azul lejos
-          { type: 'cylinder', pos: '0 1.6 -5', scale: '0.5 1 0.5', color: '#0000FF', label: 'AZUL-LEJOS' },
-          // Cubo amarillo a la derecha
-          { type: 'box', pos: '2 1.6 -3', scale: '0.5 0.5 0.5', color: '#FFFF00', label: 'AMARILLO-DER' },
-          // Cubo magenta a la izquierda
-          { type: 'box', pos: '-2 1.6 -3', scale: '0.5 0.5 0.5', color: '#FF00FF', label: 'MAGENTA-IZQ' },
-        ];
-
-        testObjects.forEach(obj => {
-          const el = document.createElement(`a-${obj.type}`);
-          el.setAttribute('position', obj.pos);
-          el.setAttribute('scale', obj.scale);
-          el.setAttribute('color', obj.color);
-          el.setAttribute('material', `emissive: ${obj.color}; emissiveIntensity: 0.5; metalness: 0.1`);
-          
-          // Animación de rotación
-          el.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 3000; easing: linear');
-          
-          container.appendChild(el);
-          log(`✓ ${obj.label} en ${obj.pos}`, obj.color);
-        });
-
-        // Avatar
+        // Avatar principal
         const avatar = document.createElement('a-entity');
         avatar.setAttribute('gltf-model', '#avatarModel');
-        avatar.setAttribute('position', '0 0 -4');
+        avatar.setAttribute('position', `${targetPos.x} ${targetPos.y} ${targetPos.z}`);
         avatar.setAttribute('scale', '1 1 1');
         
-        avatar.addEventListener('model-loaded', () => {
-          log('✓✓ AVATAR CARGADO', 'lime');
-          avatar.setAttribute('animation-mixer', 'clip: *');
-        });
+        // Rotar hacia la cámara
+        avatar.object3D.lookAt(cameraPos);
+        avatar.object3D.rotation.x = 0;
         
+        avatar.addEventListener('model-loaded', () => {
+          avatar.setAttribute('animation-mixer', 'clip: *; loop: repeat');
+          document.getElementById('instructions').innerHTML = '✓ ¡Avatar colocado!<br>Muévete para verlo desde diferentes ángulos';
+          
+          // Auto-ocultar después de 3 segundos
+          setTimeout(() => {
+            document.getElementById('instructions').style.opacity = '0.6';
+          }, 3000);
+        });
+
         container.appendChild(avatar);
 
-        log('=== 5 OBJETOS + AVATAR COLOCADOS ===', 'cyan');
-        log('Deberías ver objetos rotando frente a ti', 'yellow');
-        log('Si NO ves nada, el problema es el renderer de A-Frame', 'yellow');
-      }
+        // Marcador de suelo (opcional)
+        document.getElementById('ground').setAttribute('visible', 'true');
+        document.getElementById('ground').setAttribute('position', `${targetPos.x} -0.01 ${targetPos.z}`);
 
-      // Info de A-Frame
-      setTimeout(() => {
-        if (typeof AFRAME !== 'undefined') {
-          log('✓ A-Frame v' + AFRAME.version, 'lime');
-          log('WebGL: ' + (!!window.WebGLRenderingContext ? 'Soportado' : 'NO soportado'), 'yellow');
+        console.log(`Avatar colocado en: (${targetPos.x.toFixed(2)}, ${targetPos.y.toFixed(2)}, ${targetPos.z.toFixed(2)})`);
+      };
+
+      // Limpieza
+      window.addEventListener('beforeunload', () => {
+        if (videoStream) {
+          videoStream.getTracks().forEach(t => t.stop());
         }
-      }, 500);
-
-      log('Elige un modo:', 'cyan');
-      log('TEST SIN CÁMARA - Para ver si A-Frame funciona', 'white');
-      log('AR CON CÁMARA - Para AR real', 'white');
+      });
     </script>
   </body>
 </html>
