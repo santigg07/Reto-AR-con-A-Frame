@@ -4,24 +4,27 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Avatar AR</title>
-    <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"></script>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      model-viewer {
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
   </head>
   <body>
-    <a-scene webxr="requiredFeatures: hit-test,local-floor;">
-      
-      <a-assets timeout="30000">
-        <a-asset-item id="avatar" src="avatar.glb"></a-asset-item>
-      </a-assets>
-
-      <a-entity
-        gltf-model="#avatar"
-        animation-mixer
-        scale="0.5 0.5 0.5"
-        position="0 0 -2">
-      </a-entity>
-
-      <a-camera></a-camera>
-    </a-scene>
+    <model-viewer
+      src="avatar.glb"
+      ar
+      ar-modes="webxr scene-viewer quick-look"
+      camera-controls
+      auto-rotate
+      shadow-intensity="1"
+      alt="Avatar 3D">
+    </model-viewer>
   </body>
 </html>
