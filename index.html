@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Avatar AR</title>
     <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/ar.js@4.0.2/aframe/build/aframe-ar.min.js"></script>
     <style>
       body {
         margin: 0;
@@ -16,15 +15,44 @@
         top: 10px;
         left: 50%;
         transform: translateX(-50%);
-        background: rgba(0,0,0,0.7);
+        background: rgba(0,0,0,0.8);
         color: white;
         padding: 15px 20px;
         border-radius: 10px;
         font-family: Arial, sans-serif;
         z-index: 1000;
         text-align: center;
+        max-width: 80%;
+      }
+      #debug {
+        position: fixed;
+        bottom: 10px;
+        left: 10px;
+        background: rgba(0,0,0,0.9);
+        color: lime;
+        padding: 10px;
+        border-radius: 5px;
+        font-family: monospace;
+        font-size: 11px;
+        max-width: 90%;
+        max-height: 150px;
+        overflow-y: auto;
+        z-index: 1000;
       }
       .hidden {
+        display: none;
+      }
+      #resetBtn {
+        position: fixed;
+        bottom: 10px;
+        right: 10px;
+        background: rgba(255,0,0,0.8);
+        color: white;
+        border: none;
+        padding: 15px 20px;
+        border-radius: 10px;
+        font-size: 16px;
+        z-index: 1000;
         display: none;
       }
     </style>
@@ -33,87 +61,85 @@
     <div id="instructions">
       Toca la pantalla para colocar el avatar
     </div>
+    
+    <div id="debug"></div>
+    
+    <button id="resetBtn" onclick="resetAvatar()">Reiniciar</button>
 
     <a-scene
       embedded
-      arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
       vr-mode-ui="enabled: false"
-      renderer="logarithmicDepthBuffer: true; colorManagement: true; physicallyCorrectLights: true;">
+      renderer="colorManagement: true; physicallyCorrectLights: true; antialias: true;"
+      background="color: #87CEEB">
       
       <!-- Assets -->
       <a-assets timeout="30000">
         <a-asset-item id="avatar" src="avatar.glb"></a-asset-item>
       </a-assets>
 
-      <!-- Luces -->
-      <a-entity light="type: ambient; intensity: 0.8"></a-entity>
-      <a-entity light="type: directional; intensity: 0.5" position="1 2 1"></a-entity>
+      <!-- Luces mejoradas -->
+      <a-entity light="type: ambient; intensity: 1.2; color: #FFF"></a-entity>
+      <a-entity light="type: directional; intensity: 1; color: #FFF" position="2 4 2"></a-entity>
+      <a-entity light="type: directional; intensity: 0.5; color: #FFF" position="-2 4 -2"></a-entity>
 
       <!-- Cámara -->
-      <a-camera position="0 1.6 0" look-controls="enabled: false"></a-camera>
+      <a-camera position="0 1.6 0" look-controls="enabled: true" wasd-controls="enabled: false"></a-camera>
+
+      <!-- Suelo de referencia (opcional, para debugging) -->
+      <a-plane id="ground" position="0 0 0" rotation="-90 0 0" width="20" height="20" 
+               color="#7BC8A4" opacity="0.3" visible="false"></a-plane>
 
       <!-- Contenedor del avatar -->
       <a-entity id="avatar-container"></a-entity>
     </a-scene>
 
-    <!-- Agregar después del div de instrucciones -->
-    <div id="debug" style="position: fixed; bottom: 10px; left: 10px; 
-        background: rgba(0,0,0,0.8); color: lime; padding: 10px; 
-        font-size: 10px; max-width: 90%; z-index: 1000;">
-    </div>
-
     <script>
-      // En la consola
-      window.addEventListener('error', (e) => {
-        document.getElementById('debug').innerHTML += 
-          '<br>ERROR: ' + e.message;
-      });
-    </script>
+      const debugLog = (msg) => {
+        const debugEl = document.getElementById('debug');
+        const time = new Date().toLocaleTimeString();
+        debugEl.innerHTML += `<div>[${time}] ${msg}</div>`;
+        debugEl.scrollTop = debugEl.scrollHeight;
+        console.log(msg);
+      };
 
-    <script>
       let sceneReady = false;
       let avatarPlaced = false;
+      let avatarEntity = null;
 
-      // Esperar a que la escena cargue
       const sceneEl = document.querySelector('a-scene');
       
       sceneEl.addEventListener('loaded', () => {
-        console.log('Escena cargada');
+        debugLog('✓ Escena A-Frame cargada');
         sceneReady = true;
       });
 
-      // Manejar errores de carga del modelo
-      sceneEl.addEventListener('materialtextureloaded', () => {
-        console.log('Texturas cargadas');
-      });
-
-      sceneEl.addEventListener('model-loaded', () => {
-        console.log('Modelo cargado correctamente');
+      sceneEl.addEventListener('model-loaded', (evt) => {
+        debugLog('✓ Modelo GLB cargado exitosamente');
+        if (avatarEntity) {
+          // Hacer visible el suelo para referencia
+          document.getElementById('ground').setAttribute('visible', 'true');
+        }
       });
 
       sceneEl.addEventListener('model-error', (evt) => {
-        console.error('Error al cargar el modelo:', evt);
+        debugLog('✗ ERROR al cargar modelo: ' + evt.detail);
         document.getElementById('instructions').innerHTML = 
-          'Error: No se pudo cargar el avatar.<br>Verifica que avatar.glb esté en la carpeta correcta';
+          'Error: No se pudo cargar avatar.glb<br>Verifica la ruta del archivo';
       });
 
-      // Colocar avatar al tocar la pantalla
-      document.addEventListener('touchstart', (evt) => {
+      // Colocar avatar al tocar
+      document.addEventListener('touchstart', handlePlacement);
+      document.addEventListener('click', handlePlacement);
+
+      function handlePlacement(evt) {
         if (!sceneReady || avatarPlaced) return;
-        
         evt.preventDefault();
         placeAvatar();
-      });
-
-      // También permitir click para pruebas en escritorio
-      document.addEventListener('click', (evt) => {
-        if (!sceneReady || avatarPlaced) return;
-        placeAvatar();
-      });
+      }
 
       function placeAvatar() {
         avatarPlaced = true;
-        console.log('Colocando avatar');
+        debugLog('Colocando avatar...');
 
         const container = document.getElementById('avatar-container');
         const camera = document.querySelector('a-camera');
@@ -121,37 +147,78 @@
         const cameraRot = camera.getAttribute('rotation');
 
         // Crear el avatar
-        const avatar = document.createElement('a-entity');
-        avatar.setAttribute('gltf-model', '#avatar');
-        avatar.setAttribute('scale', '0.5 0.5 0.5');
-        avatar.setAttribute('animation-mixer', 'clip: *; loop: repeat');
+        avatarEntity = document.createElement('a-entity');
+        avatarEntity.setAttribute('gltf-model', '#avatar');
         
-        // Calcular posición frente a la cámara
-        const distance = 2; // 2 metros frente a la cámara
+        // Escala más grande para asegurar visibilidad
+        avatarEntity.setAttribute('scale', '1.5 1.5 1.5');
+        
+        // Activar animaciones
+        avatarEntity.setAttribute('animation-mixer', 'clip: *; loop: repeat; timeScale: 1');
+        
+        // Posición: directamente frente a la cámara
+        const distance = 3; // 3 metros frente
         const angle = (cameraRot.y || 0) * (Math.PI / 180);
         
         const x = cameraPos.x - Math.sin(angle) * distance;
-        const y = 0; // En el suelo
+        const y = 0.5; // Elevar un poco del suelo
         const z = cameraPos.z - Math.cos(angle) * distance;
         
-        avatar.setAttribute('position', `${x} ${y} ${z}`);
-        avatar.setAttribute('rotation', `0 ${cameraRot.y || 0} 0`);
-
-        container.appendChild(avatar);
-
-        // Actualizar instrucciones
-        document.getElementById('instructions').innerHTML = 
-          '¡Avatar colocado! 🎉<br>Muévete para verlo desde diferentes ángulos';
+        avatarEntity.setAttribute('position', `${x} ${y} ${z}`);
         
+        // Rotar hacia la cámara
+        avatarEntity.setAttribute('rotation', `0 ${(cameraRot.y || 0) + 180} 0`);
+
+        // Añadir marcador visual de referencia (cubo rojo)
+        const marker = document.createElement('a-box');
+        marker.setAttribute('position', `${x} ${y + 2} ${z}`);
+        marker.setAttribute('scale', '0.2 0.2 0.2');
+        marker.setAttribute('color', 'red');
+        marker.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 2000');
+        sceneEl.appendChild(marker);
+
+        container.appendChild(avatarEntity);
+
+        debugLog(`Avatar colocado en (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`);
+        debugLog(`Cámara en (${cameraPos.x}, ${cameraPos.y}, ${cameraPos.z})`);
+        debugLog(`Rotación cámara: ${cameraRot.y}°`);
+
+        document.getElementById('instructions').innerHTML = 
+          '¡Avatar colocado! 🎉<br>Mira arriba, verás un cubo rojo de referencia<br>El avatar está debajo';
+        
+        document.getElementById('resetBtn').style.display = 'block';
+        
+        // Auto-ocultar instrucciones
         setTimeout(() => {
-          document.getElementById('instructions').classList.add('hidden');
-        }, 3000);
+          document.getElementById('instructions').style.opacity = '0.7';
+          document.getElementById('instructions').style.fontSize = '12px';
+        }, 5000);
       }
 
-      // Verificar soporte de WebXR
-      if (!navigator.xr) {
-        console.warn('WebXR no disponible, usando modo AR.js');
+      function resetAvatar() {
+        debugLog('Reiniciando...');
+        avatarPlaced = false;
+        const container = document.getElementById('avatar-container');
+        container.innerHTML = '';
+        
+        // Limpiar marcadores
+        const markers = document.querySelectorAll('a-box[color="red"]');
+        markers.forEach(m => m.remove());
+        
+        document.getElementById('instructions').innerHTML = 
+          'Toca la pantalla para colocar el avatar';
+        document.getElementById('instructions').style.opacity = '1';
+        document.getElementById('instructions').style.fontSize = '14px';
+        document.getElementById('resetBtn').style.display = 'none';
+        document.getElementById('ground').setAttribute('visible', 'false');
       }
+
+      // Detectar errores generales
+      window.addEventListener('error', (e) => {
+        debugLog('✗ ERROR JS: ' + e.message);
+      });
+
+      debugLog('Script cargado, esperando interacción...');
     </script>
   </body>
 </html>
