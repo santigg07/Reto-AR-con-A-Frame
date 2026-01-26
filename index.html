@@ -251,30 +251,20 @@
         log(`Cámara en: (${cameraPos.x.toFixed(2)}, ${cameraPos.y.toFixed(2)}, ${cameraPos.z.toFixed(2)})`);
         log(`Avatar en: (${targetPos.x.toFixed(2)}, ${targetPos.y.toFixed(2)}, ${targetPos.z.toFixed(2)})`);
 
-        // Crear cubo de referencia MÁS GRANDE Y BRILLANTE
+        // Crear cubo de referencia GRANDE y visible
         const testCube = document.createElement('a-box');
-        testCube.setAttribute('position', `${targetPos.x} ${targetPos.y + 2} ${targetPos.z}`);
-        testCube.setAttribute('scale', '1 1 1'); // MUCHO MÁS GRANDE
+        testCube.setAttribute('position', `${targetPos.x} ${targetPos.y + 1} ${targetPos.z}`);
+        testCube.setAttribute('scale', '0.3 0.3 0.3');
         testCube.setAttribute('color', '#FF0000');
-        testCube.setAttribute('material', 'shader: flat; emissive: #FF0000; emissiveIntensity: 1');
+        testCube.setAttribute('material', 'shader: flat');
         testCube.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 2000');
         sceneEl.appendChild(testCube);
-        
-        // Añadir esfera verde también
-        const sphere = document.createElement('a-sphere');
-        sphere.setAttribute('position', `${targetPos.x} ${targetPos.y + 3} ${targetPos.z}`);
-        sphere.setAttribute('radius', '0.5');
-        sphere.setAttribute('color', '#00FF00');
-        sphere.setAttribute('material', 'shader: flat; emissive: #00FF00; emissiveIntensity: 1');
-        sphere.setAttribute('animation', 'property: position; to: ' + targetPos.x + ' ' + (targetPos.y + 3.5) + ' ' + targetPos.z + '; dir: alternate; loop: true; dur: 1000');
-        sceneEl.appendChild(sphere);
-        
-        log('✓ Cubo rojo y esfera verde colocados como referencia');
+        log('✓ Cubo rojo colocado como referencia');
 
         // Crear el avatar
         avatarEntity = document.createElement('a-entity');
         avatarEntity.setAttribute('gltf-model', '#avatar');
-        avatarEntity.setAttribute('scale', '3 3 3'); // ESCALA MUY GRANDE
+        avatarEntity.setAttribute('scale', '2 2 2'); // ESCALA GRANDE
         avatarEntity.setAttribute('position', `${targetPos.x} ${targetPos.y} ${targetPos.z}`);
         
         // Rotar hacia la cámara
@@ -304,7 +294,7 @@
           instructions.innerHTML = 'Error al cargar avatar.glb<br>¿Está el archivo en la misma carpeta?';
         });
 
-        instructions.innerHTML = 'Colocando avatar...<br>Busca un CUBO ROJO GRANDE girando 360°<br>Debería estar frente a ti a 5 metros';
+        instructions.innerHTML = 'Colocando avatar...<br>Busca un cubo rojo girando';
       }
 
       function resetAvatar() {
@@ -316,7 +306,7 @@
           container.removeChild(container.firstChild);
         }
         
-        const cubes = document.querySelectorAll('a-box, a-sphere');
+        const cubes = document.querySelectorAll('a-box');
         cubes.forEach(c => c.remove());
         
         instructions.innerHTML = 'Toca la pantalla para colocar el avatar';
