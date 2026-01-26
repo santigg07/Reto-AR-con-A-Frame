@@ -20,12 +20,14 @@
         height: 100%;
         z-index: 0;
         background: #000;
+        display: block;
       }
       
       #videoContainer video {
         width: 100%;
         height: 100%;
         object-fit: cover;
+        display: block;
       }
       
       #scene {
@@ -116,13 +118,12 @@
 
     <div id="videoContainer"></div>
 
-    <a-scene
+          <a-scene
       id="scene"
       embedded
       vr-mode-ui="enabled: false"
-      renderer="colorManagement: true; antialias: true; alpha: false; logarithmicDepthBuffer: true"
-      background="color: #87CEEB"
-      style="display: none;">
+      renderer="colorManagement: true; antialias: true; alpha: true; logarithmicDepthBuffer: true"
+      style="display: none; background: transparent;">
       
       <a-assets>
         <a-asset-item id="avatarModel" src="avatar.glb"></a-asset-item>
@@ -143,7 +144,7 @@
       
       <!-- Plano suelo semi-transparente -->
       <a-plane position="0 0 0" rotation="-90 0 0" width="30" height="30" 
-               color="#4CAF50" opacity="0.2" visible="false" id="ground"></a-plane>
+               color="#4CAF50" opacity="0.1" visible="false" id="ground"></a-plane>
     </a-scene>
 
     <script>
@@ -168,40 +169,64 @@
             }
           });
 
+          instructions.textContent = '✓ Cámara obtenida, iniciando video...';
+
           // Mostrar video
           const videoContainer = document.getElementById('videoContainer');
+          videoContainer.style.display = 'block';
+          videoContainer.style.zIndex = '0';
+          
           const video = document.createElement('video');
+          video.id = 'cameraVideo';
           video.autoplay = true;
           video.playsInline = true;
           video.muted = true;
+          video.setAttribute('playsinline', '');
+          video.style.cssText = 'display: block; width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0;';
           video.srcObject = videoStream;
+          
+          // Esperar a que el video esté listo
+          video.onloadedmetadata = () => {
+            video.play().then(() => {
+              instructions.textContent = '✓ Video activo, cargando AR...';
+              
+              // AHORA activar A-Frame
+              setTimeout(() => {
+                sceneEl = document.getElementById('scene');
+                sceneEl.style.display = 'block';
+                sceneEl.style.zIndex = '1';
+                
+                // Hacer fondo completamente transparente
+                sceneEl.setAttribute('background', 'transparent: true');
+                sceneEl.setAttribute('renderer', 'colorManagement: true; antialias: true; alpha: true; logarithmicDepthBuffer: true');
+                
+                // Configurar canvas transparente y verificar que esté encima del video
+                setTimeout(() => {
+                  const canvas = sceneEl.canvas;
+                  if (canvas) {
+                    canvas.style.background = 'transparent';
+                    canvas.style.backgroundColor = 'transparent';
+                    canvas.style.zIndex = '1';
+                    canvas.style.position = 'fixed';
+                    console.log('Canvas configurado transparente sobre video');
+                  }
+                  
+                  instructions.textContent = '✓ AR Listo - Apunta donde quieres colocar el avatar';
+                  document.getElementById('placeBtn').style.display = 'block';
+                }, 1000);
+              }, 500);
+              
+            }).catch(err => {
+              instructions.textContent = '❌ Error reproduciendo video: ' + err.message;
+            });
+          };
+          
           videoContainer.appendChild(video);
 
-          // Activar escena A-Frame
-          sceneEl = document.getElementById('scene');
-          sceneEl.style.display = 'block';
-          
-          // Hacer fondo transparente para ver el video
-          sceneEl.setAttribute('background', 'transparent: true; alpha: true');
-          
-          // Configurar canvas transparente
-          setTimeout(() => {
-            const canvas = sceneEl.canvas;
-            if (canvas) {
-              canvas.style.background = 'transparent';
-            }
-          }, 500);
-
-          instructions.textContent = '✓ AR Activo';
-          setTimeout(() => {
-            instructions.textContent = 'Apunta donde quieres colocar el avatar';
-          }, 1500);
-
-          document.getElementById('placeBtn').style.display = 'block';
-
         } catch (err) {
-          instructions.textContent = '❌ Error: ' + err.message;
+          instructions.textContent = '❌ Error cámara: ' + err.message;
           instructions.style.background = 'rgba(200,0,0,0.9)';
+          console.error('Error:', err);
         }
       };
 
