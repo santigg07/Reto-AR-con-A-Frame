@@ -1,316 +1,36 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Saludo Avatar VR/AR</title>
+    
     <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
-    <style>
-      body {
-        margin: 0;
-        overflow: hidden;
-      }
-      #debug-info {
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        background: rgba(0,0,0,0.7);
-        color: white;
-        padding: 10px;
-        font-family: monospace;
-        font-size: 12px;
-        z-index: 1000;
-        max-width: 300px;
-      }
-      #overlay {
-        position: absolute;
-        bottom: 100px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(0,0,0,0.8);
-        color: white;
-        padding: 15px 25px;
-        border-radius: 10px;
-        font-family: Arial, sans-serif;
-        text-align: center;
-        display: none;
-        z-index: 999;
-      }
-      /* Botón AR personalizado */
-      #ar-button {
-        position: absolute;
-        bottom: 20px;
-        right: 20px;
-        width: 60px;
-        height: 60px;
-        background: rgba(255,255,255,0.9);
-        border: none;
-        border-radius: 50%;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 24px;
-        z-index: 1000;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-      }
-      #ar-button:active {
-        background: rgba(200,200,200,0.9);
-      }
-    </style>
+
   </head>
   <body>
-    <!-- Debug info -->
-    <div id="debug-info">Cargando...</div>
-
-    <!-- Instrucciones AR -->
-    <div id="overlay">
-      <p style="margin: 0; font-size: 14px;">👇 Apunta al suelo y toca para colocar el avatar</p>
-    </div>
-
-    <!-- Botón AR personalizado -->
-    <button id="ar-button" title="Entrar en AR">📱</button>
-
-    <!-- Escena con VR habilitado -->
-    <a-scene 
-      xr-mode-ui="enabled: true"
-      renderer="colorManagement: true;"
-      background="transparent"
-      ar-mode>
-      
+   
+   <a-scene xr-mode-ui="enabled: true; XRMode: xr;">
       <a-assets timeout="30000">
-        <a-asset-item id="avatarModel" src="avatar.glb"></a-asset-item>
+        <a-asset-item id="avatar" src="avatar.glb"></a-asset-item>
       </a-assets>
-
-      <!-- Cámara -->
-      <a-camera position="0 1.6 0"></a-camera>
-
-      <!-- Entorno VR -->
-      <a-entity id="vr-environment" visible="true">
-        <a-plane 
-          position="0 0 0" 
-          rotation="-90 0 0" 
-          width="20" 
-          height="20" 
-          color="#7BC8A4"
-          shadow="receive: true">
-        </a-plane>
-        <a-sky color="#ECECEC"></a-sky>
-      </a-entity>
-
-      <!-- Avatar -->
-      <a-entity 
-        id="avatar-container" 
-        position="0 0 -3"
-        visible="true">
-        
-        <a-entity 
-          id="avatar-model"
-          scale="1 1 1"
-          position="0 0 0"
-          gltf-model="#avatarModel"
-          animation-mixer
-          shadow="cast: true; receive: false">
-        </a-entity>
-
-        <a-text
-          value="¡Hola! Soy tu Avatar"
-          position="0 2 0"
-          align="center"
-          color="#FF6B6B"
-          width="4"
-          animation="property: position; to: 0 2.2 0; dir: alternate; dur: 1500; loop: true; easing: easeInOutSine">
-        </a-text>
-      </a-entity>
-
-      <!-- Iluminación -->
-      <a-entity light="type: ambient; intensity: 0.7;"></a-entity>
-      <a-entity light="type: directional; intensity: 0.8;" position="1 2 1"></a-entity>
+    
+      <a-camera position="0 0 0"></a-camera>
+    
+      <!-- 2D environment omitted for simplicity -->
+        <a-entity
+              id="avatar"
+              scale="8 8 8"
+              position="-2 -10 -18"
+              gltf-model="#avatar"
+              animation-mixer
+              shadow="cast: true; receive: false">
+            </a-entity>
+    
+      <!-- Lights configuration omitted for simplicity -->
     </a-scene>
 
-    <script>
-      // Debug logging
-      function log(msg) {
-        console.log(msg);
-        const debug = document.getElementById('debug-info');
-        if (debug) {
-          debug.innerHTML += msg + '<br>';
-        }
-      }
-
-      // Inicializar botón AR
-      const arButton = document.getElementById('ar-button');
-      const sceneEl = document.querySelector('a-scene');
-
-      // Verificar soporte AR
-      window.addEventListener('load', () => {
-        log('Página cargada');
-        
-        if (!navigator.xr) {
-          log('❌ WebXR no disponible');
-          arButton.style.display = 'none';
-          return;
-        }
-
-        navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
-          if (supported) {
-            log('✅ AR soportado');
-            arButton.style.display = 'flex';
-          } else {
-            log('❌ AR no soportado');
-            arButton.style.display = 'none';
-          }
-        }).catch((err) => {
-          log('Error: ' + err.message);
-          arButton.style.display = 'none';
-        });
-      });
-
-      // Manejar click en botón AR
-      arButton.addEventListener('click', async () => {
-        log('Botón AR presionado');
-        
-        try {
-          const session = await navigator.xr.requestSession('immersive-ar', {
-            requiredFeatures: ['hit-test', 'local-floor'],
-            optionalFeatures: ['dom-overlay'],
-            domOverlay: { root: document.body }
-          });
-          
-          log('Sesión AR creada');
-          sceneEl.renderer.xr.setSession(session);
-          
-        } catch (err) {
-          log('Error al entrar en AR: ' + err.message);
-          alert('No se pudo iniciar AR: ' + err.message);
-        }
-      });
-
-      // Componente AR mejorado
-      AFRAME.registerComponent('ar-mode', {
-        init: function() {
-          const sceneEl = this.el;
-          const avatar = document.getElementById('avatar-container');
-          const vrEnv = document.getElementById('vr-environment');
-          const overlay = document.getElementById('overlay');
-          const arBtn = document.getElementById('ar-button');
-          
-          let isAR = false;
-          let reticle = null;
-          let hitTestSource = null;
-          let localSpace = null;
-          let isPlaced = false;
-
-          log('Componente AR inicializado');
-
-          // Crear reticle
-          reticle = document.createElement('a-ring');
-          reticle.setAttribute('position', '0 0 0');
-          reticle.setAttribute('rotation', '-90 0 0');
-          reticle.setAttribute('radius-inner', '0.15');
-          reticle.setAttribute('radius-outer', '0.2');
-          reticle.setAttribute('material', 'color: #fff; shader: flat; opacity: 0.8;');
-          reticle.setAttribute('visible', 'false');
-          sceneEl.appendChild(reticle);
-
-          // Entrar en XR
-          sceneEl.addEventListener('enter-vr', async () => {
-            log('→ Entrando en XR');
-            
-            const session = sceneEl.renderer.xr.getSession();
-            if (!session) {
-              log('⚠ No hay sesión');
-              return;
-            }
-
-            const mode = session.mode;
-            log('Modo: ' + mode);
-
-            if (mode === 'immersive-ar') {
-              isAR = true;
-              isPlaced = false;
-              
-              // UI para AR
-              if (vrEnv) vrEnv.setAttribute('visible', 'false');
-              if (overlay) overlay.style.display = 'block';
-              if (avatar) avatar.setAttribute('visible', 'false');
-              if (arBtn) arBtn.style.display = 'none';
-              
-              log('Configurando hit test...');
-              
-              // Hit test setup
-              try {
-                localSpace = await session.requestReferenceSpace('local-floor');
-                const viewerSpace = await session.requestReferenceSpace('viewer');
-                hitTestSource = await session.requestHitTestSource({ space: viewerSpace });
-                log('✅ Hit test listo');
-              } catch (err) {
-                log('❌ Error hit test: ' + err.message);
-              }
-            } else {
-              log('Modo VR estándar');
-              isAR = false;
-            }
-          });
-
-          // Salir de XR
-          sceneEl.addEventListener('exit-vr', () => {
-            log('← Saliendo de XR');
-            isAR = false;
-            isPlaced = false;
-            hitTestSource = null;
-            
-            if (reticle) reticle.setAttribute('visible', 'false');
-            if (overlay) overlay.style.display = 'none';
-            if (vrEnv) vrEnv.setAttribute('visible', 'true');
-            if (arBtn) arBtn.style.display = 'flex';
-            if (avatar) {
-              avatar.setAttribute('visible', 'true');
-              avatar.setAttribute('position', '0 0 -3');
-            }
-          });
-
-          // Click para colocar
-          sceneEl.addEventListener('click', () => {
-            if (isAR && !isPlaced && reticle && reticle.getAttribute('visible')) {
-              const pos = reticle.getAttribute('position');
-              if (avatar) {
-                avatar.setAttribute('position', pos);
-                avatar.setAttribute('visible', 'true');
-              }
-              if (reticle) reticle.setAttribute('visible', 'false');
-              if (overlay) overlay.style.display = 'none';
-              isPlaced = true;
-              log('✅ Avatar colocado');
-            }
-          });
-
-          // Frame loop para hit testing
-          sceneEl.renderer.xr.addEventListener('sessionstart', () => {
-            sceneEl.renderer.setAnimationLoop((timestamp, frame) => {
-              if (!frame || !isAR || !hitTestSource || !localSpace || isPlaced) return;
-
-              try {
-                const hitTestResults = frame.getHitTestResults(hitTestSource);
-                
-                if (hitTestResults.length > 0) {
-                  const hit = hitTestResults[0];
-                  const pose = hit.getPose(localSpace);
-                  
-                  if (pose && reticle) {
-                    const pos = pose.transform.position;
-                    reticle.setAttribute('position', { x: pos.x, y: pos.y, z: pos.z });
-                    reticle.setAttribute('visible', 'true');
-                  }
-                }
-              } catch (err) {
-                // Silent error handling
-              }
-            });
-          });
-        }
-      });
-    </script>
   </body>
 </html>
