@@ -2,33 +2,176 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>Prueba VR con Avatar</title>
-    <!--<script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>-->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Saludo Avatar VR/AR</title>
     <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+    </style>
   </head>
   <body>
-    <a-scene>
+    <!-- Escena con soporte VR y AR -->
+    <a-scene 
+      xr-mode-ui="XRMode: xr;"
+      renderer="colorManagement: true; physicallyCorrectLights: true;"
+      webxr="requiredFeatures: hit-test,local-floor;
+             optionalFeatures: dom-overlay,unbounded;
+             overlayElement: #overlay;">
+      
       <a-assets timeout="30000">
-        <a-asset-item id="avatar" src="avatar.glb"></a-asset-item>
+        <a-asset-item id="avatarModel" src="avatar.glb"></a-asset-item>
       </a-assets>
 
-      <a-camera position="0 1.2 0"></a-camera>
+      <!-- Cámara -->
+      <a-camera position="0 1.6 0" look-controls wasd-controls></a-camera>
 
-      <!-- 2D environment omitted for simplicity -->
+      <!-- Entorno VR (solo visible en VR) -->
+      <a-entity id="vr-environment">
+        <!-- Suelo para VR -->
+        <a-plane 
+          position="0 0 0" 
+          rotation="-90 0 0" 
+          width="20" 
+          height="20" 
+          color="#7BC8A4"
+          shadow="receive: true">
+        </a-plane>
 
-      <a-entity id="avatar" position="-1 0 -3" scale="0.5 0.5 0.5">
-        <a-entity 
-            id="avatar"
-            scale="8 8 8"
-            position="-2 -10 -18"
-            gltf-model="#avatar"
-            animation-mixer
-            shadow="cast: true; receive: false">
-        </a-entity>
+        <!-- Cielo para VR -->
+        <a-sky color="#ECECEC"></a-sky>
       </a-entity>
 
-      <!-- Lights configuration omitted for simplicity -->
+      <!-- Avatar con posición para VR -->
+      <a-entity 
+        id="avatar-container" 
+        position="0 0 -3"
+        visible="true">
+        
+        <!-- El modelo del avatar -->
+        <a-entity 
+          id="avatar-model"
+          scale="1 1 1"
+          position="0 0 0"
+          gltf-model="#avatarModel"
+          animation-mixer
+          shadow="cast: true; receive: false">
+        </a-entity>
+
+        <!-- Texto de saludo flotante -->
+        <a-text
+          value="¡Hola! Soy tu Avatar"
+          position="0 2 0"
+          align="center"
+          color="#FF6B6B"
+          width="4"
+          font="roboto"
+          shader="msdf"
+          animation="property: position; to: 0 2.2 0; dir: alternate; dur: 1500; loop: true; easing: easeInOutSine">
+        </a-text>
+      </a-entity>
+
+      <!-- Iluminación -->
+      <a-entity light="type: ambient; intensity: 0.5; color: #FFF"></a-entity>
+      <a-entity 
+        light="type: directional; intensity: 1; castShadow: true; shadowCameraVisible: false" 
+        position="2 4 2">
+      </a-entity>
+      <a-entity 
+        light="type: point; intensity: 0.5; distance: 10; decay: 2" 
+        position="-2 3 -2">
+      </a-entity>
+
     </a-scene>
+
+    <!-- Instrucciones superpuestas (para AR) -->
+    <div id="overlay" style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); 
+                             background: rgba(0,0,0,0.7); color: white; padding: 15px 25px; 
+                             border-radius: 10px; font-family: Arial, sans-serif; text-align: center;
+                             display: none; z-index: 1000;">
+      <p style="margin: 0; font-size: 14px;">Toca en el suelo para colocar tu avatar</p>
+    </div>
+
+    <script>
+      // Script para manejar AR hit-test y posicionamiento
+      AFRAME.registerComponent('ar-hit-test', {
+        init: function () {
+          this.xrHitTestSource = null;
+          this.viewerSpace = null;
+          this.refSpace = null;
+          
+          this.el.sceneEl.addEventListener('enter-vr', () => {
+            const session = this.el.sceneEl.renderer.xr.getSession();
+            if (session && session.requestReferenceSpace) {
+              // Estamos en AR
+              const overlay = document.getElementById('overlay');
+              if (overlay) overlay.style.display = 'block';
+              
+              // Ocultar entorno VR
+              const vrEnv = document.getElementById('vr-environment');
+              if (vrEnv) vrEnv.setAttribute('visible', 'false');
+              
+              this.setupHitTest(session);
+            }
+          });
+
+          this.el.sceneEl.addEventListener('exit-vr', () => {
+            const overlay = document.getElementById('overlay');
+            if (overlay) overlay.style.display = 'none';
+            
+            // Mostrar entorno VR
+            const vrEnv = document.getElementById('vr-environment');
+            if (vrEnv) vrEnv.setAttribute('visible', 'true');
+            
+            this.xrHitTestSource = null;
+          });
+        },
+
+        setupHitTest: async function(session) {
+          session.requestReferenceSpace('viewer').then((space) => {
+            this.viewerSpace = space;
+            session.requestHitTestSource({ space: this.viewerSpace }).then((hitTestSource) => {
+              this.xrHitTestSource = hitTestSource;
+            });
+          });
+
+          this.refSpace = await session.requestReferenceSpace('local-floor');
+        },
+
+        tick: function() {
+          if (this.xrHitTestSource && this.el.sceneEl.renderer.xr.isPresenting) {
+            const session = this.el.sceneEl.renderer.xr.getSession();
+            const frame = this.el.sceneEl.frame;
+            
+            if (frame) {
+              const hitTestResults = frame.getHitTestResults(this.xrHitTestSource);
+              if (hitTestResults.length > 0) {
+                const hit = hitTestResults[0];
+                const pose = hit.getPose(this.refSpace);
+                
+                if (pose) {
+                  const avatar = document.getElementById('avatar-container');
+                  if (avatar) {
+                    avatar.object3D.visible = true;
+                    const position = pose.transform.position;
+                    avatar.setAttribute('position', {
+                      x: position.x,
+                      y: position.y,
+                      z: position.z
+                    });
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      // Añadir el componente a la escena
+      document.querySelector('a-scene').setAttribute('ar-hit-test', '');
+    </script>
   </body>
 </html>
