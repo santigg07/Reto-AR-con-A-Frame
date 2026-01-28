@@ -11,27 +11,60 @@
         margin: 0;
         overflow: hidden;
       }
+      #debug-info {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: rgba(0,0,0,0.7);
+        color: white;
+        padding: 10px;
+        font-family: monospace;
+        font-size: 12px;
+        z-index: 1000;
+        max-width: 300px;
+        display: none;
+      }
+      #overlay {
+        position: absolute;
+        bottom: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0,0,0,0.8);
+        color: white;
+        padding: 15px 25px;
+        border-radius: 10px;
+        font-family: Arial, sans-serif;
+        text-align: center;
+        display: none;
+        z-index: 999;
+      }
     </style>
   </head>
   <body>
-    <!-- Escena con soporte VR y AR -->
+    <!-- Debug info -->
+    <div id="debug-info"></div>
+
+    <!-- Instrucciones AR -->
+    <div id="overlay">
+      <p style="margin: 0; font-size: 14px;">👇 Apunta la cámara al suelo y toca para colocar el avatar</p>
+    </div>
+
+    <!-- Escena con configuración simplificada para AR -->
     <a-scene 
-      xr-mode-ui="XRMode: xr;"
-      renderer="colorManagement: true; physicallyCorrectLights: true;"
-      webxr="requiredFeatures: hit-test,local-floor;
-             optionalFeatures: dom-overlay,unbounded;
-             overlayElement: #overlay;">
+      xr-mode-ui="enabled: true"
+      renderer="colorManagement: true;"
+      background="transparent"
+      ar-mode>
       
       <a-assets timeout="30000">
         <a-asset-item id="avatarModel" src="avatar.glb"></a-asset-item>
       </a-assets>
 
       <!-- Cámara -->
-      <a-camera position="0 1.6 0" look-controls wasd-controls></a-camera>
+      <a-camera position="0 1.6 0"></a-camera>
 
-      <!-- Entorno VR (solo visible en VR) -->
-      <a-entity id="vr-environment">
-        <!-- Suelo para VR -->
+      <!-- Entorno VR -->
+      <a-entity id="vr-environment" visible="true">
         <a-plane 
           position="0 0 0" 
           rotation="-90 0 0" 
@@ -40,18 +73,15 @@
           color="#7BC8A4"
           shadow="receive: true">
         </a-plane>
-
-        <!-- Cielo para VR -->
         <a-sky color="#ECECEC"></a-sky>
       </a-entity>
 
-      <!-- Avatar con posición para VR -->
+      <!-- Avatar -->
       <a-entity 
         id="avatar-container" 
         position="0 0 -3"
         visible="true">
         
-        <!-- El modelo del avatar -->
         <a-entity 
           id="avatar-model"
           scale="1 1 1"
@@ -61,117 +91,187 @@
           shadow="cast: true; receive: false">
         </a-entity>
 
-        <!-- Texto de saludo flotante -->
         <a-text
           value="¡Hola! Soy tu Avatar"
           position="0 2 0"
           align="center"
           color="#FF6B6B"
           width="4"
-          font="roboto"
-          shader="msdf"
           animation="property: position; to: 0 2.2 0; dir: alternate; dur: 1500; loop: true; easing: easeInOutSine">
         </a-text>
       </a-entity>
 
       <!-- Iluminación -->
-      <a-entity light="type: ambient; intensity: 0.5; color: #FFF"></a-entity>
-      <a-entity 
-        light="type: directional; intensity: 1; castShadow: true; shadowCameraVisible: false" 
-        position="2 4 2">
-      </a-entity>
-      <a-entity 
-        light="type: point; intensity: 0.5; distance: 10; decay: 2" 
-        position="-2 3 -2">
-      </a-entity>
-
+      <a-entity light="type: ambient; intensity: 0.7;"></a-entity>
+      <a-entity light="type: directional; intensity: 0.8;" position="1 2 1"></a-entity>
     </a-scene>
 
-    <!-- Instrucciones superpuestas (para AR) -->
-    <div id="overlay" style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); 
-                             background: rgba(0,0,0,0.7); color: white; padding: 15px 25px; 
-                             border-radius: 10px; font-family: Arial, sans-serif; text-align: center;
-                             display: none; z-index: 1000;">
-      <p style="margin: 0; font-size: 14px;">Toca en el suelo para colocar tu avatar</p>
-    </div>
-
     <script>
-      // Script para manejar AR hit-test y posicionamiento
-      AFRAME.registerComponent('ar-hit-test', {
-        init: function () {
-          this.xrHitTestSource = null;
-          this.viewerSpace = null;
-          this.refSpace = null;
+      // Debug logging
+      function log(msg) {
+        console.log(msg);
+        const debug = document.getElementById('debug-info');
+        if (debug) {
+          debug.style.display = 'block';
+          debug.innerHTML += msg + '<br>';
+        }
+      }
+
+      // Componente para manejar el modo AR
+      AFRAME.registerComponent('ar-mode', {
+        init: function() {
+          const sceneEl = this.el;
+          const avatar = document.getElementById('avatar-container');
+          const vrEnv = document.getElementById('vr-environment');
+          const overlay = document.getElementById('overlay');
           
-          this.el.sceneEl.addEventListener('enter-vr', () => {
-            const session = this.el.sceneEl.renderer.xr.getSession();
-            if (session && session.requestReferenceSpace) {
-              // Estamos en AR
-              const overlay = document.getElementById('overlay');
-              if (overlay) overlay.style.display = 'block';
+          let isAR = false;
+          let reticle = null;
+          let hitTestSource = null;
+          let hitTestSourceRequested = false;
+          let localSpace = null;
+          let isPlaced = false;
+
+          log('AR component initialized');
+
+          // Crear reticle (indicador de posición)
+          reticle = document.createElement('a-ring');
+          reticle.setAttribute('position', '0 0 0');
+          reticle.setAttribute('rotation', '-90 0 0');
+          reticle.setAttribute('radius-inner', '0.15');
+          reticle.setAttribute('radius-outer', '0.2');
+          reticle.setAttribute('material', 'color: #fff; shader: flat; opacity: 0.8;');
+          reticle.setAttribute('visible', 'false');
+          sceneEl.appendChild(reticle);
+
+          // Evento al entrar en XR (VR o AR)
+          sceneEl.addEventListener('enter-vr', async () => {
+            log('Entering XR...');
+            
+            const session = sceneEl.renderer.xr.getSession();
+            
+            if (!session) {
+              log('No XR session found');
+              return;
+            }
+
+            const mode = session.mode;
+            log('XR mode: ' + mode);
+
+            if (mode === 'immersive-ar') {
+              isAR = true;
+              log('AR mode activated');
               
               // Ocultar entorno VR
-              const vrEnv = document.getElementById('vr-environment');
               if (vrEnv) vrEnv.setAttribute('visible', 'false');
               
-              this.setupHitTest(session);
+              // Mostrar overlay
+              if (overlay) overlay.style.display = 'block';
+              
+              // Ocultar avatar inicialmente hasta que se coloque
+              if (avatar) avatar.setAttribute('visible', 'false');
+              
+              // Configurar hit test
+              try {
+                localSpace = await session.requestReferenceSpace('local');
+                const viewerSpace = await session.requestReferenceSpace('viewer');
+                hitTestSource = await session.requestHitTestSource({ space: viewerSpace });
+                hitTestSourceRequested = true;
+                log('Hit test source created');
+              } catch (err) {
+                log('Error setting up hit test: ' + err.message);
+              }
+            } else {
+              log('VR mode activated');
+              isAR = false;
+              if (vrEnv) vrEnv.setAttribute('visible', 'true');
+              if (avatar) avatar.setAttribute('visible', 'true');
+              if (overlay) overlay.style.display = 'none';
             }
           });
 
-          this.el.sceneEl.addEventListener('exit-vr', () => {
-            const overlay = document.getElementById('overlay');
+          // Evento al salir de XR
+          sceneEl.addEventListener('exit-vr', () => {
+            log('Exiting XR');
+            isAR = false;
+            isPlaced = false;
+            hitTestSourceRequested = false;
+            hitTestSource = null;
+            
+            if (reticle) reticle.setAttribute('visible', 'false');
             if (overlay) overlay.style.display = 'none';
-            
-            // Mostrar entorno VR
-            const vrEnv = document.getElementById('vr-environment');
             if (vrEnv) vrEnv.setAttribute('visible', 'true');
-            
-            this.xrHitTestSource = null;
-          });
-        },
-
-        setupHitTest: async function(session) {
-          session.requestReferenceSpace('viewer').then((space) => {
-            this.viewerSpace = space;
-            session.requestHitTestSource({ space: this.viewerSpace }).then((hitTestSource) => {
-              this.xrHitTestSource = hitTestSource;
-            });
+            if (avatar) {
+              avatar.setAttribute('visible', 'true');
+              avatar.setAttribute('position', '0 0 -3');
+            }
           });
 
-          this.refSpace = await session.requestReferenceSpace('local-floor');
-        },
+          // Click/touch para colocar el avatar
+          sceneEl.addEventListener('click', () => {
+            if (isAR && !isPlaced && reticle && reticle.getAttribute('visible')) {
+              const pos = reticle.getAttribute('position');
+              if (avatar) {
+                avatar.setAttribute('position', pos);
+                avatar.setAttribute('visible', 'true');
+              }
+              if (reticle) reticle.setAttribute('visible', 'false');
+              if (overlay) overlay.style.display = 'none';
+              isPlaced = true;
+              log('Avatar placed at: ' + JSON.stringify(pos));
+            }
+          });
 
-        tick: function() {
-          if (this.xrHitTestSource && this.el.sceneEl.renderer.xr.isPresenting) {
-            const session = this.el.sceneEl.renderer.xr.getSession();
-            const frame = this.el.sceneEl.frame;
+          // Frame loop para AR hit testing
+          sceneEl.renderer.xr.addEventListener('sessionstart', () => {
+            const session = sceneEl.renderer.xr.getSession();
             
-            if (frame) {
-              const hitTestResults = frame.getHitTestResults(this.xrHitTestSource);
-              if (hitTestResults.length > 0) {
-                const hit = hitTestResults[0];
-                const pose = hit.getPose(this.refSpace);
+            sceneEl.renderer.setAnimationLoop((timestamp, frame) => {
+              if (!frame || !isAR || !hitTestSource || !localSpace) return;
+
+              try {
+                const hitTestResults = frame.getHitTestResults(hitTestSource);
                 
-                if (pose) {
-                  const avatar = document.getElementById('avatar-container');
-                  if (avatar) {
-                    avatar.object3D.visible = true;
-                    const position = pose.transform.position;
-                    avatar.setAttribute('position', {
-                      x: position.x,
-                      y: position.y,
-                      z: position.z
+                if (hitTestResults.length > 0 && !isPlaced) {
+                  const hit = hitTestResults[0];
+                  const pose = hit.getPose(localSpace);
+                  
+                  if (pose && reticle) {
+                    const pos = pose.transform.position;
+                    reticle.setAttribute('position', {
+                      x: pos.x,
+                      y: pos.y,
+                      z: pos.z
                     });
+                    reticle.setAttribute('visible', 'true');
                   }
                 }
+              } catch (err) {
+                // Silently handle errors in frame loop
               }
-            }
-          }
+            });
+          });
         }
       });
 
-      // Añadir el componente a la escena
-      document.querySelector('a-scene').setAttribute('ar-hit-test', '');
+      // Verificar compatibilidad AR al cargar
+      window.addEventListener('load', () => {
+        if (navigator.xr) {
+          navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
+            if (supported) {
+              log('AR is supported on this device');
+            } else {
+              log('AR is NOT supported on this device');
+              alert('Tu dispositivo no soporta WebXR AR. Asegúrate de usar Chrome y tener los Google Play Services actualizados.');
+            }
+          }).catch((err) => {
+            log('Error checking AR support: ' + err.message);
+          });
+        } else {
+          log('WebXR not available');
+          alert('WebXR no está disponible. Asegúrate de usar Chrome en Android.');
+        }
+      });
     </script>
   </body>
 </html>
