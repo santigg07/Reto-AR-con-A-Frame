@@ -22,11 +22,10 @@
         font-size: 12px;
         z-index: 1000;
         max-width: 300px;
-        display: none;
       }
       #overlay {
         position: absolute;
-        bottom: 80px;
+        bottom: 100px;
         left: 50%;
         transform: translateX(-50%);
         background: rgba(0,0,0,0.8);
@@ -38,18 +37,42 @@
         display: none;
         z-index: 999;
       }
+      /* Botón AR personalizado */
+      #ar-button {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        width: 60px;
+        height: 60px;
+        background: rgba(255,255,255,0.9);
+        border: none;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        z-index: 1000;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+      }
+      #ar-button:active {
+        background: rgba(200,200,200,0.9);
+      }
     </style>
   </head>
   <body>
     <!-- Debug info -->
-    <div id="debug-info"></div>
+    <div id="debug-info">Cargando...</div>
 
     <!-- Instrucciones AR -->
     <div id="overlay">
-      <p style="margin: 0; font-size: 14px;">👇 Apunta la cámara al suelo y toca para colocar el avatar</p>
+      <p style="margin: 0; font-size: 14px;">👇 Apunta al suelo y toca para colocar el avatar</p>
     </div>
 
-    <!-- Escena con configuración simplificada para AR -->
+    <!-- Botón AR personalizado -->
+    <button id="ar-button" title="Entrar en AR">📱</button>
+
+    <!-- Escena con VR habilitado -->
     <a-scene 
       xr-mode-ui="enabled: true"
       renderer="colorManagement: true;"
@@ -112,29 +135,76 @@
         console.log(msg);
         const debug = document.getElementById('debug-info');
         if (debug) {
-          debug.style.display = 'block';
           debug.innerHTML += msg + '<br>';
         }
       }
 
-      // Componente para manejar el modo AR
+      // Inicializar botón AR
+      const arButton = document.getElementById('ar-button');
+      const sceneEl = document.querySelector('a-scene');
+
+      // Verificar soporte AR
+      window.addEventListener('load', () => {
+        log('Página cargada');
+        
+        if (!navigator.xr) {
+          log('❌ WebXR no disponible');
+          arButton.style.display = 'none';
+          return;
+        }
+
+        navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
+          if (supported) {
+            log('✅ AR soportado');
+            arButton.style.display = 'flex';
+          } else {
+            log('❌ AR no soportado');
+            arButton.style.display = 'none';
+          }
+        }).catch((err) => {
+          log('Error: ' + err.message);
+          arButton.style.display = 'none';
+        });
+      });
+
+      // Manejar click en botón AR
+      arButton.addEventListener('click', async () => {
+        log('Botón AR presionado');
+        
+        try {
+          const session = await navigator.xr.requestSession('immersive-ar', {
+            requiredFeatures: ['hit-test', 'local-floor'],
+            optionalFeatures: ['dom-overlay'],
+            domOverlay: { root: document.body }
+          });
+          
+          log('Sesión AR creada');
+          sceneEl.renderer.xr.setSession(session);
+          
+        } catch (err) {
+          log('Error al entrar en AR: ' + err.message);
+          alert('No se pudo iniciar AR: ' + err.message);
+        }
+      });
+
+      // Componente AR mejorado
       AFRAME.registerComponent('ar-mode', {
         init: function() {
           const sceneEl = this.el;
           const avatar = document.getElementById('avatar-container');
           const vrEnv = document.getElementById('vr-environment');
           const overlay = document.getElementById('overlay');
+          const arBtn = document.getElementById('ar-button');
           
           let isAR = false;
           let reticle = null;
           let hitTestSource = null;
-          let hitTestSourceRequested = false;
           let localSpace = null;
           let isPlaced = false;
 
-          log('AR component initialized');
+          log('Componente AR inicializado');
 
-          // Crear reticle (indicador de posición)
+          // Crear reticle
           reticle = document.createElement('a-ring');
           reticle.setAttribute('position', '0 0 0');
           reticle.setAttribute('rotation', '-90 0 0');
@@ -144,70 +214,64 @@
           reticle.setAttribute('visible', 'false');
           sceneEl.appendChild(reticle);
 
-          // Evento al entrar en XR (VR o AR)
+          // Entrar en XR
           sceneEl.addEventListener('enter-vr', async () => {
-            log('Entering XR...');
+            log('→ Entrando en XR');
             
             const session = sceneEl.renderer.xr.getSession();
-            
             if (!session) {
-              log('No XR session found');
+              log('⚠ No hay sesión');
               return;
             }
 
             const mode = session.mode;
-            log('XR mode: ' + mode);
+            log('Modo: ' + mode);
 
             if (mode === 'immersive-ar') {
               isAR = true;
-              log('AR mode activated');
+              isPlaced = false;
               
-              // Ocultar entorno VR
+              // UI para AR
               if (vrEnv) vrEnv.setAttribute('visible', 'false');
-              
-              // Mostrar overlay
               if (overlay) overlay.style.display = 'block';
-              
-              // Ocultar avatar inicialmente hasta que se coloque
               if (avatar) avatar.setAttribute('visible', 'false');
+              if (arBtn) arBtn.style.display = 'none';
               
-              // Configurar hit test
+              log('Configurando hit test...');
+              
+              // Hit test setup
               try {
-                localSpace = await session.requestReferenceSpace('local');
+                localSpace = await session.requestReferenceSpace('local-floor');
                 const viewerSpace = await session.requestReferenceSpace('viewer');
                 hitTestSource = await session.requestHitTestSource({ space: viewerSpace });
-                hitTestSourceRequested = true;
-                log('Hit test source created');
+                log('✅ Hit test listo');
               } catch (err) {
-                log('Error setting up hit test: ' + err.message);
+                log('❌ Error hit test: ' + err.message);
               }
             } else {
-              log('VR mode activated');
+              log('Modo VR estándar');
               isAR = false;
-              if (vrEnv) vrEnv.setAttribute('visible', 'true');
-              if (avatar) avatar.setAttribute('visible', 'true');
-              if (overlay) overlay.style.display = 'none';
             }
           });
 
-          // Evento al salir de XR
+          // Salir de XR
           sceneEl.addEventListener('exit-vr', () => {
-            log('Exiting XR');
+            log('← Saliendo de XR');
             isAR = false;
             isPlaced = false;
-            hitTestSourceRequested = false;
             hitTestSource = null;
             
             if (reticle) reticle.setAttribute('visible', 'false');
             if (overlay) overlay.style.display = 'none';
             if (vrEnv) vrEnv.setAttribute('visible', 'true');
+            if (arBtn) arBtn.style.display = 'flex';
             if (avatar) {
               avatar.setAttribute('visible', 'true');
               avatar.setAttribute('position', '0 0 -3');
             }
           });
 
-          // Click/touch para colocar el avatar
+          // Click para colocar
           sceneEl.addEventListener('click', () => {
             if (isAR && !isPlaced && reticle && reticle.getAttribute('visible')) {
               const pos = reticle.getAttribute('position');
@@ -218,58 +282,33 @@
               if (reticle) reticle.setAttribute('visible', 'false');
               if (overlay) overlay.style.display = 'none';
               isPlaced = true;
-              log('Avatar placed at: ' + JSON.stringify(pos));
+              log('✅ Avatar colocado');
             }
           });
 
-          // Frame loop para AR hit testing
+          // Frame loop para hit testing
           sceneEl.renderer.xr.addEventListener('sessionstart', () => {
-            const session = sceneEl.renderer.xr.getSession();
-            
             sceneEl.renderer.setAnimationLoop((timestamp, frame) => {
-              if (!frame || !isAR || !hitTestSource || !localSpace) return;
+              if (!frame || !isAR || !hitTestSource || !localSpace || isPlaced) return;
 
               try {
                 const hitTestResults = frame.getHitTestResults(hitTestSource);
                 
-                if (hitTestResults.length > 0 && !isPlaced) {
+                if (hitTestResults.length > 0) {
                   const hit = hitTestResults[0];
                   const pose = hit.getPose(localSpace);
                   
                   if (pose && reticle) {
                     const pos = pose.transform.position;
-                    reticle.setAttribute('position', {
-                      x: pos.x,
-                      y: pos.y,
-                      z: pos.z
-                    });
+                    reticle.setAttribute('position', { x: pos.x, y: pos.y, z: pos.z });
                     reticle.setAttribute('visible', 'true');
                   }
                 }
               } catch (err) {
-                // Silently handle errors in frame loop
+                // Silent error handling
               }
             });
           });
-        }
-      });
-
-      // Verificar compatibilidad AR al cargar
-      window.addEventListener('load', () => {
-        if (navigator.xr) {
-          navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
-            if (supported) {
-              log('AR is supported on this device');
-            } else {
-              log('AR is NOT supported on this device');
-              alert('Tu dispositivo no soporta WebXR AR. Asegúrate de usar Chrome y tener los Google Play Services actualizados.');
-            }
-          }).catch((err) => {
-            log('Error checking AR support: ' + err.message);
-          });
-        } else {
-          log('WebXR not available');
-          alert('WebXR no está disponible. Asegúrate de usar Chrome en Android.');
         }
       });
     </script>
